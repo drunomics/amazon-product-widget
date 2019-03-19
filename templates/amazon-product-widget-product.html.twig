@@ -1,0 +1,20 @@
+<article class="amazon-product">
+  <div class="amazon-product__image" style="background-image: url('{{img_src}}');"></div>
+  <div class="amazon-product__content">
+    <header class="amazon-product__details">
+        <div class="amazon-product__brand">
+            {{ manufacturer }}
+        </div>
+        <div class="amazon-product__name">
+            {{ title }}
+        </div>
+        <div class="amazon-product__price">
+            {{ currency_symbol }} {{ price }}
+        </div>
+    </header>
+    <a class="amazon-product__link" target="_blank" href="{{ url }}">
+      <span class="amazon-product__link__icon"></span>
+      <span class="amazon-product__link__text">{{ call_to_action_text }}</span>
+    </a>
+  </div>
+</article>

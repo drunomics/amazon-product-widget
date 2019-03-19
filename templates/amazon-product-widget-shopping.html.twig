@@ -1,0 +1,12 @@
+<div class="amazon-shopping__display-case">
+  {% if title is not empty %}
+    <header class="amazon-shopping__heading">
+      <h3 class="amazon-shopping__title">{{ title }}</h3>
+    </header>
+  {% endif %}
+  <section class="amazon-shopping__product-list amazon-shopping__product-list--{{ products | length }}-items">
+    {% for product in products %}
+      {{ product }}
+    {% endfor %}
+  </section>
+</div>

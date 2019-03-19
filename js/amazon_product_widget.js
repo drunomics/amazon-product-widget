@@ -1,0 +1,34 @@
+/**
+ * @file
+ * Load amazon product widgets.
+ */
+(function () {
+
+  /**
+   * Loads amazon widget via Ajax.
+   *
+   * @param field
+   */
+  var loadAmazonWidget = function (field) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/amazon/product?entity_id=' + field.dataset.entityId + '&entity_type=' + field.dataset.entityType + '&field=' + field.dataset.field, true);
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        var data = JSON.parse(xhr.response);
+        if (data.count > 0) {
+          field.style.display = 'block';
+          field.innerHTML = data.content;
+        }
+      }
+    };
+    xhr.send();
+  };
+
+  document.addEventListener("DOMContentLoaded", function() {
+    let fields = document.querySelectorAll('.amazon-product-widget');
+    for (var i = 0; i < fields.length; i++ ) {
+      loadAmazonWidget(fields[i]);
+    }
+  });
+
+}());

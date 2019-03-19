@@ -1,0 +1,7 @@
+amazon_product_widget.product_api:
+  path: '/api/amazon/product'
+  defaults:
+    _controller: '\Drupal\amazon_product_widget\Controller\AmazonProductController::get'
+  requirements:
+    # Amazon products can be accessed by anyone.
+    _access: 'TRUE'

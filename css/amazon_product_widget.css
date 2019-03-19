@@ -1,0 +1,154 @@
+.amazon-product-widget {
+  display: none;
+}
+
+.amazon-shopping__heading {
+  margin-bottom: 1em;
+}
+
+
+/* LIST LAYOUT*/
+/* mobile breakpoint */
+.amazon-shopping__product-list {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.amazon-product {
+  flex: 1;
+}
+
+/* desktop breakpoint */
+@media (min-width: 768px) {
+  .amazon-shopping__product-list {
+    flex-direction: row;
+  }
+
+  .amazon-product {
+    min-width: 200px;
+  }
+
+  .amazon-product:not(:last-child) {
+    margin-right: 1em;
+  }
+}
+
+/* PRODUCT DISPLAY */
+.amazon-product {
+  border: 1px solid #e6e6e6;
+  padding: 2%;
+  margin-bottom: 1em;
+}
+
+.amazon-product__image {
+  height: 10em;
+  min-width: 10em;
+  margin-bottom: .8em;
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.amazon-product__content {
+  width: 100%;
+}
+
+.amazon-product__brand {
+  font-size: .7em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: .8;
+}
+
+.amazon-product__name {
+  height: 2.6em;
+  margin-bottom: .8em;
+  overflow: hidden;
+}
+
+.amazon-product__price {
+  color: #b12704;
+  margin-bottom: .8em;
+}
+
+.amazon-product__link {
+  display: flex;
+}
+
+.amazon-product__link > span {
+  display: block;
+}
+
+.amazon-product__link__icon {
+  width: 2em;
+  border: 1px solid #e6e6e6;
+  background: #fff url('../images/amazon.svg');
+  background-size: 1em;
+  background-position: center center;
+  background-repeat: no-repeat;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+.amazon-product__link__text {
+  flex: 1;
+  padding: .3em 2em;
+  text-align: center;
+  color: white;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+  background-color: #ff9900;
+}
+
+/* PRODUCT DISPLAY ORIENTATION SWITCH */
+@media (min-width: 365px) and (max-width: 768px) {
+  .amazon-shopping__product-list--3-items  .amazon-product {
+    display: flex;
+  }
+
+  .amazon-shopping__product-list--3-items .amazon-product__image {
+    margin-right: 1em;
+    margin-bottom: 0;
+  }
+
+  .amazon-shopping__product-list--3-items  .amazon-product__brand {
+    white-space: initial;
+  }
+}
+
+@media (min-width: 365px) {
+  .amazon-shopping__product-list--2-items  .amazon-product {
+    display: flex;
+  }
+
+  .amazon-shopping__product-list--2-items .amazon-product__image {
+    margin-right: 1em;
+    margin-bottom: 0;
+  }
+
+  .amazon-shopping__product-list--2-items .amazon-product__brand {
+    white-space: initial;
+  }
+}
+
+@media (min-width: 365px) {
+  .amazon-shopping__product-list--1-items .amazon-product {
+    display: flex;
+  }
+
+  .amazon-shopping__product-list--1-items .amazon-product__image {
+    margin-right: 1em;
+    margin-bottom: 0;
+  }
+
+  .amazon-shopping__product-list--1-items .amazon-product {
+    max-width: 660px;;
+  }
+
+  .amazon-shopping__product-list--1-items .amazon-product__brand {
+    white-space: initial;
+  }
+}

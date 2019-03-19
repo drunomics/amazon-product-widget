@@ -1,0 +1,9 @@
+amazon_product_widget:
+  js:
+    js/amazon_product_widget.js: { minified: true }
+  css:
+    base:
+      css/amazon_product_widget.css: { minified: true }
+  dependencies:
+    - core/drupal
+    - core/drupalSettings

@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * @file
+ * Module file.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function amazon_product_widget_theme($existing, $type, $theme, $path) {
+  return [
+    'amazon_product_widget' => [
+      'variables' => [
+        'label' => '',
+        'entity_id' => '',
+        'entity_type' => '',
+        'field' => '',
+      ],
+    ],
+    'amazon_product_widget_shopping' => [
+      'variables' => [
+        'title' => '',
+        'products' => [],
+      ],
+    ],
+    'amazon_product_widget_product' => [
+      'variables' => [
+        'img_src' => '',
+        'name' => '',
+        'title' => '',
+        'url' => '',
+        'call_to_action_text' => '',
+        'currency_symbol' => '',
+        'manufacturer' => '',
+        'price' => '',
+      ],
+    ],
+  ];
+}

@@ -1,0 +1,4 @@
+max_requests_per_day: 8640
+max_requests_per_second: 1
+render_max_age: 3600
+call_to_action_text: Buy
