@@ -3,6 +3,7 @@
 namespace Drupal\amazon_product_widget;
 
 use Drupal\amazon\Amazon;
+use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\KeyValueStore\KeyValueStoreExpirableInterface;
 use Drupal\Core\Lock\LockBackendInterface;
@@ -71,16 +72,32 @@ class ProductService {
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
     $this->associatesId = $config->get('amazon.settings')->get('associates_id');
+
+    if (empty($this->maxRequestPerSecond)) {
+      $this->maxRequestPerSecond = 1;
+    }
+
+    if(empty($this->maxRequestPerDay)) {
+      $this->maxRequestPerDay = 8640;
+    }
   }
 
   /**
    * Gets the amazon api.
    *
    * @return \Drupal\amazon\Amazon
+   *
+   * @throws AmazonServiceUnavailableException
    */
   protected function getAmazonApi() {
     if (!$this->amazonApi instanceof Amazon) {
-      $this->amazonApi = new Amazon($this->associatesId);
+      try {
+        $this->amazonApi = new Amazon($this->associatesId);
+      }
+      catch (\Exception $e) {
+        watchdog_exception('amazon_product_widget', $e);
+        throw new AmazonServiceUnavailableException('Error initializing amazon API, check watchdog log for more information.');
+      }
     }
 
     return $this->amazonApi;
@@ -94,6 +111,8 @@ class ProductService {
    *
    * @return array
    *   Build.
+   *
+   * @throws AmazonServiceUnavailableException
    */
   public function fetchProductData(array $asins) {
     $asins = array_unique($asins);
@@ -111,16 +130,26 @@ class ProductService {
         $result = $this->getAmazonApi()->lookup($fetch_asins, ['Offers']);
         // We don't release the lock here to keep within throttling limits.
         foreach ($result as $item) {
-          $price = $item->Offers->Offer->OfferListing->Price;
+          $product_available = FALSE;
+          $price = NULL;
+          $currency = NULL;
+
+          if (!empty($item->Offers->Offer->OfferListing->Price)) {
+            $product_available = TRUE;
+            $price = (string) $item->Offers->Offer->OfferListing->Price->Amount;
+            $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
+          }
+
           $amazon_data[(string) $item->ASIN] = [
             'ASIN' => (string) $item->ASIN,
             'title' => (string) $item->ItemAttributes->Title,
             'url' => (string) $item->DetailPageURL,
             'img_src' => (string) $item->MediumImage->URL,
-            'price' => number_format((float) $price->Amount / 100, 2, ',', ''),
-            'currency' => (string) $price->CurrencyCode,
+            'price' => $price ? number_format((float) $price / 100, 2, ',', '') : NULL,
+            'currency' => $currency,
             'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
             'product_group' => (string) $item->ItemAttributes->ProductGroup,
+            'product_available' => $product_available,
           ];
         }
       }
@@ -135,6 +164,16 @@ class ProductService {
     }
 
     return $product_data;
+  }
+
+  /**
+   * Invalidates cached data for specified ASINs.
+   *
+   * @param string[] $asins
+   *   Product ASINs.
+   */
+  public function invalidateCache(array $asins) {
+    $this->productStore->deleteMultiple($asins);
   }
 
 }

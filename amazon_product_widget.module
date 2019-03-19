@@ -34,6 +34,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'currency_symbol' => '',
         'manufacturer' => '',
         'price' => '',
+        'product_available' => TRUE,
       ],
     ],
   ];

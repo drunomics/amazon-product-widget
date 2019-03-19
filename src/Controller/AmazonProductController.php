@@ -92,7 +92,17 @@ class AmazonProductController extends ControllerBase {
       }
     }
 
-    $product_data = $this->productService->fetchProductData($asins);
+    try {
+      $product_data = $this->productService->fetchProductData($asins);
+    }
+    catch (\Exception $e) {
+      watchdog_exception('amazon_product_widget', $e);
+      $response = new CacheableJsonResponse();
+      $response->addCacheableDependency($cache_dependency);
+      $response->setData(['count' => 0, 'content' => '']);
+      $response->setMaxAge(3600);
+      return $response;
+    }
 
     $product_build = [];
     foreach ($product_data as $data) {

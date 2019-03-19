@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Plugin\Field\FieldWidget;
 
+use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -55,8 +56,8 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
    */
   public static function defaultSettings() {
     return [
-      'max_asins' => 3,
-    ] + parent::defaultSettings();
+        'max_asins' => 3,
+      ] + parent::defaultSettings();
   }
 
   /**
@@ -145,6 +146,10 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
    *   Form state.
    */
   public function validateAsins(array $element, FormStateInterface $form_state) {
+    if ($form_state->getValue('form_id') == 'field_config_edit_form') {
+      return;
+    }
+
     $asins = [];
     foreach (Element::children($element) as $key) {
       if (!empty($element[$key]['#value'])) {
@@ -153,17 +158,24 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
     }
 
     if (empty($asins)) {
-      $form_state->setError($element[0], $this->t('Input at least one ASIN.'));
+      $form_state->setError($element, $this->t('Input at least one ASIN.'));
       return;
     }
 
-    $valid_asins = $this->productService->fetchProductData($asins);
+    $service_unavailable = FALSE;
+    try {
+      $valid_asins = $this->productService->fetchProductData($asins);
+    }
+    catch (AmazonServiceUnavailableException $e) {
+      $service_unavailable = TRUE;
+    }
 
     foreach (Element::children($element) as $key) {
       if (!empty($element[$key]['#value'])) {
         $asin = $element[$key]['#value'];
         if (empty($valid_asins[$asin])) {
-          $form_state->setError($element[$key], $this->t('Invalid asin: @asin', ['@asin' => $asin]));
+          $error_msg = $service_unavailable ? $e->getMessage() : $this->t('Invalid asin: @asin', ['@asin' => $asin]);
+          $form_state->setError($element[$key], $error_msg);
         }
       }
     }
