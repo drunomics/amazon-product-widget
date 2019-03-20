@@ -10,7 +10,7 @@
     }
   ],
   "require": {
-    "drupal/amazon": "2.x-dev",
+    "drupal/amazon": "dev-2.x#080fbfac089a45c12bd65ff1f7c00038f977044d",
     "drupal/core": "8.x"
   },
   "extra": {
