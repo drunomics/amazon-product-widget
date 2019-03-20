@@ -56,8 +56,8 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
    */
   public static function defaultSettings() {
     return [
-        'max_asins' => 3,
-      ] + parent::defaultSettings();
+      'max_asins' => 3,
+    ] + parent::defaultSettings();
   }
 
   /**
@@ -162,19 +162,20 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
       return;
     }
 
-    $service_unavailable = FALSE;
     try {
       $valid_asins = $this->productService->fetchProductData($asins);
     }
     catch (AmazonServiceUnavailableException $e) {
-      $service_unavailable = TRUE;
+      $this->messenger()->addWarning($e->getMessage());
+      // Do not prevent the update of the element & skip ASIN validation.
+      return;
     }
 
     foreach (Element::children($element) as $key) {
       if (!empty($element[$key]['#value'])) {
         $asin = $element[$key]['#value'];
         if (empty($valid_asins[$asin])) {
-          $error_msg = $service_unavailable ? $e->getMessage() : $this->t('Invalid asin: @asin', ['@asin' => $asin]);
+          $error_msg = $this->t('Invalid asin: @asin', ['@asin' => $asin]);
           $form_state->setError($element[$key], $error_msg);
         }
       }

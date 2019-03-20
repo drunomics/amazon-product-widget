@@ -77,7 +77,7 @@ class ProductService {
       $this->maxRequestPerSecond = 1;
     }
 
-    if(empty($this->maxRequestPerDay)) {
+    if (empty($this->maxRequestPerDay)) {
       $this->maxRequestPerDay = 8640;
     }
   }
@@ -96,7 +96,7 @@ class ProductService {
       }
       catch (\Exception $e) {
         watchdog_exception('amazon_product_widget', $e);
-        throw new AmazonServiceUnavailableException('Error initializing amazon API, check watchdog log for more information.');
+        throw new AmazonServiceUnavailableException('Error on initializing Amazon API, check log for more information.');
       }
     }
 
@@ -154,16 +154,25 @@ class ProductService {
         }
       }
 
+      // An expiration of at least one day should be enough to not run into
+      // amazons throttling limits.
+      $expire = 3600 * 24 + rand(0, 3600 * 24);
+
       if (!empty($amazon_data)) {
-        // An expiration of at least one day should be enough to not run into
-        // amazons throttling limits.
-        $expire = 3600 * 24 + rand(0, 3600 * 24);
         $this->productStore->setMultipleWithExpire($amazon_data, $expire);
         $product_data += $amazon_data;
       }
+
+      // Also cache asins for which we couldn't get any data or else we would
+      // query the API again using up the request limit.
+      $unknown_asins = array_diff($asins, array_keys($amazon_data));
+      if (!empty($unknown_asins)) {
+        $this->productStore->setMultipleWithExpire(array_flip($unknown_asins), $expire);
+      }
     }
 
-    return $product_data;
+    // Only return valid data.
+    return array_filter($product_data);
   }
 
   /**

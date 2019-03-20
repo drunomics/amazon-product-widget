@@ -92,45 +92,45 @@ class AmazonProductController extends ControllerBase {
       }
     }
 
+    $content = NULL;
+    $product_data = [];
+
     try {
       $product_data = $this->productService->fetchProductData($asins);
+
+      $product_build = [];
+      foreach ($product_data as $data) {
+        $data = (array) $data;
+        $product_build[] = [
+          '#theme' => 'amazon_product_widget_product',
+          '#img_src' => $data['img_src'],
+          '#name' => $data['title'],
+          '#title' => $data['title'],
+          '#url' => $data['url'],
+          '#call_to_action_text' => $this->settings->get('call_to_action_text'),
+          '#currency_symbol' => $data['currency'],
+          '#manufacturer' => $data['manufacturer'],
+          '#price' => $data['price'],
+        ];
+      }
+
+      $build = [
+        '#theme' => 'amazon_product_widget_shopping',
+        '#title' => $title,
+        '#products' => $product_build,
+      ];
+
+      $cache_dependency->applyTo($build);
+      $content = $this->renderer->renderRoot($build);
     }
     catch (\Exception $e) {
       watchdog_exception('amazon_product_widget', $e);
-      $response = new CacheableJsonResponse();
-      $response->addCacheableDependency($cache_dependency);
-      $response->setData(['count' => 0, 'content' => '']);
-      $response->setMaxAge(3600);
-      return $response;
+      // Continue here and cache the empty response.
     }
-
-    $product_build = [];
-    foreach ($product_data as $data) {
-      $data = (array) $data;
-      $product_build[] = [
-        '#theme' => 'amazon_product_widget_product',
-        '#img_src' => $data['img_src'],
-        '#name' => $data['title'],
-        '#title' => $data['title'],
-        '#url' => $data['url'],
-        '#call_to_action_text' => $this->settings->get('call_to_action_text'),
-        '#currency_symbol' => $data['currency'],
-        '#manufacturer' => $data['manufacturer'],
-        '#price' => $data['price'],
-      ];
-    }
-
-    $build = [
-      '#theme' => 'amazon_product_widget_shopping',
-      '#title' => $title,
-      '#products' => $product_build,
-    ];
-
-    $cache_dependency->applyTo($build);
 
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cache_dependency);
-    $response->setData(['count' => count($product_data), 'content' => $this->renderer->renderRoot($build)]);
+    $response->setData(['count' => count($product_data), 'content' => $content]);
     $max_age = $this->settings->get('render_max_age');
     $response->setMaxAge(!empty($max_age) ? $max_age : 3600);
 
