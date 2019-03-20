@@ -8,5 +8,18 @@
       "name": "drunomics",
       "email": "hello@drunomics.com"
     }
-  ]
+  ],
+  "require": {
+    "drupal/amazon": "2.x-dev",
+    "drupal/core": "8.x"
+  },
+  "extra": {
+    "patches": {
+      "drupal/amazon": {
+        "Issue #3005862 Allow to set locale when using API." : "https://www.drupal.org/files/issues/2018-10-16/3005862-4-allow-to-set-locale.patch",
+        "Issue #3006056 Respect extra response groups" : "https://www.drupal.org/files/issues/2018-10-11/3006056-2-include-extra-response-groups.patch",
+        "Issue #3029351 Enable api key input fields in administration form." : "https://www.drupal.org/files/issues/2019-02-11/3029351-2-admin-form-enable-api-key-input-fields.patch"
+      }
+    }
+  }
 }

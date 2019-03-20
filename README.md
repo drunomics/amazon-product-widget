@@ -51,7 +51,8 @@ The module requires the drupal\amazon module with the following patches:
 ## Installation
 
  * `composer require drupal/amazon:2.x-dev`
- * add patches 3005862, 3006056 and 3029351 (see [Requirements](#requirements))
+ * Either add patches manually or set `enable-patching` to true in
+   the projects root composer.json (see [Requirements](#requirements)).
  * Install this module as you would a normal Drupal module
 
 ## Configuration
