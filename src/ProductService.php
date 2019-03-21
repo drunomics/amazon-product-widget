@@ -167,7 +167,7 @@ class ProductService {
       // query the API again using up the request limit.
       $unknown_asins = array_diff($asins, array_keys($amazon_data));
       if (!empty($unknown_asins)) {
-        $this->productStore->setMultipleWithExpire(array_flip($unknown_asins), $expire);
+        $this->productStore->setMultipleWithExpire(array_fill_keys($unknown_asins, FALSE), $expire);
       }
     }
 
