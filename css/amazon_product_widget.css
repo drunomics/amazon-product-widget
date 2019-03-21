@@ -64,6 +64,7 @@
 }
 
 .amazon-product__name {
+  line-height: 1.2em;
   height: 2.6em;
   margin-bottom: .8em;
   overflow: hidden;
@@ -72,6 +73,7 @@
 .amazon-product__price {
   color: #b12704;
   margin-bottom: .8em;
+  height: 1.2em;
 }
 
 .amazon-product__link {
