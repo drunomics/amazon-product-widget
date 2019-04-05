@@ -2,7 +2,6 @@
 
 namespace Drupal\amazon_product_widget\Plugin\Field\FieldWidget;
 
-use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -48,7 +47,14 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static($plugin_id, $plugin_definition, $configuration['field_definition'], $configuration['settings'], $configuration['third_party_settings'], $container->get('amazon_product_widget.product_service'));
+    return new static(
+      $plugin_id,
+      $plugin_definition,
+      $configuration['field_definition'],
+      $configuration['settings'],
+      $configuration['third_party_settings'],
+      $container->get('amazon_product_widget.product_service')
+    );
   }
 
   /**
@@ -161,33 +167,21 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
       $form_state->setError($element, $this->t('Input at least one ASIN.'));
       return;
     }
-
-    try {
-      $valid_asins = $this->productService->fetchProductData($asins);
-    }
-    catch (AmazonServiceUnavailableException $e) {
-      $this->messenger()->addWarning($e->getMessage());
-      // Do not prevent the update of the element & skip ASIN validation.
-      return;
-    }
-
-    foreach (Element::children($element) as $key) {
-      if (!empty($element[$key]['#value'])) {
-        $asin = $element[$key]['#value'];
-        if (empty($valid_asins[$asin])) {
-          $error_msg = $this->t('Invalid asin: @asin', ['@asin' => $asin]);
-          $form_state->setError($element[$key], $error_msg);
-        }
-      }
-    }
   }
+
+  protected static $asinsQueued = FALSE;
 
   /**
    * {@inheritdoc}
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
+    static $asinsQueued = FALSE;
     foreach ($values as &$value) {
       if (!empty($value['asins']) && is_array($value['asins'])) {
+        if (!$asinsQueued) {
+          $this->productService->queueFetchProductData($value['asins']);
+          $asinsQueued = TRUE;
+        }
         $value['asins'] = implode(",", array_filter($value['asins']));
       }
     }

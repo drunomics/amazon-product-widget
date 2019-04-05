@@ -1,0 +1,8 @@
+administer amazon_product_widget configuration:
+  title: 'Administer amazon_product_widget configuration'
+  description: 'Optional description.'
+  restrict access: true
+renew amazon product data:
+  title: 'Renew amazon product data'
+  description: 'Allow the renewal of cached amazon product data.'
+  restrict access: true

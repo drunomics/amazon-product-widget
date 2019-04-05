@@ -5,4 +5,4 @@ namespace Drupal\amazon_product_widget\Exception;
 /**
  * Amazon API can't be used due to misconfiguration or invalid credentials.
  */
-class AmazonServiceUnavailableException extends \Exception {}
+class AmazonServiceUnavailableException extends ProductServiceException {}

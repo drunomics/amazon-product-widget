@@ -3,10 +3,11 @@
 namespace Drupal\amazon_product_widget;
 
 use Drupal\amazon\Amazon;
+use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\KeyValueStore\KeyValueStoreExpirableInterface;
 use Drupal\Core\Lock\LockBackendInterface;
+use Drupal\Core\Queue\QueueInterface;
 
 /**
  * Provides amazon product data.
@@ -16,7 +17,7 @@ class ProductService {
   /**
    * Product store.
    *
-   * @var \Drupal\Core\KeyValueStore\KeyValueStoreExpirableInterface
+   * @var \Drupal\amazon_product_widget\productStore
    */
   protected $productStore;
 
@@ -26,6 +27,13 @@ class ProductService {
    * @var \Drupal\Core\Lock\LockBackendInterface
    */
   protected $lock;
+
+  /**
+   * Queue for fetching product data.
+   *
+   * @var \Drupal\Core\Queue\QueueInterface
+   */
+  protected $queue;
 
   /**
    * Amazon API.
@@ -58,16 +66,19 @@ class ProductService {
   /**
    * ProductService constructor.
    *
-   * @param \Drupal\Core\KeyValueStore\KeyValueStoreExpirableInterface $product_store
+   * @param \Drupal\amazon_product_widget\ProductStoreFactory $store_factory
    *   Product store.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   Lock.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   Config factory.
+   * @param \Drupal\Core\Queue\QueueInterface $queue
+   *   The queue.
    */
-  public function __construct(KeyValueStoreExpirableInterface $product_store, LockBackendInterface $lock, ConfigFactoryInterface $config) {
-    $this->productStore = $product_store;
+  public function __construct(ProductStoreFactory $store_factory, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue) {
+    $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->lock = $lock;
+    $this->queue = $queue;
 
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
@@ -80,6 +91,15 @@ class ProductService {
     if (empty($this->maxRequestPerDay)) {
       $this->maxRequestPerDay = 8640;
     }
+  }
+
+  /**
+   * Gets the product store.
+   *
+   * @return \Drupal\amazon_product_widget\productStore
+   */
+  public function getProductStore() {
+    return $this->productStore;
   }
 
   /**
@@ -104,85 +124,128 @@ class ProductService {
   }
 
   /**
-   * Fetch product data from temp storage and fall back to amazon api.
+   * Gets amazon product data.
+   *
+   * Since this will use amazon requests which are limited, never use this
+   * method in a way where the asins are provided by anonymous users input.
+   *
+   * @param string[] $asins
+   *   Product ASINs.
+   * @param bool $renew
+   *   Clear cache and fetch product data from amazon.
+   *
+   * @return array
+   *   Associative array with ASIN-number as key, and product data as values.
+   *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
+   */
+  public function getProductData(array $asins, $renew = FALSE) {
+    $asins = array_unique($asins);
+
+    if ($renew) {
+      $this->productStore->deleteMultiple($asins);
+    }
+
+    $product_data = $this->productStore->getMultiple($asins);
+    $fetch_asins = array_diff($asins, array_keys($product_data));
+
+    if (!empty($fetch_asins)) {
+      $product_data += $this->fetchAmazonProducts($fetch_asins);
+    }
+
+    return $product_data;
+  }
+
+  /**
+   * Queue fetching of stale product data in the store.
+   *
+   * @param string[] $asins
+   *   (optional) Provide ASINs which are not in the store yet.
+   *
+   * @throws \Exception
+   */
+  public function queueFetchProductData(array $asins = []) {
+    foreach ($asins as $asin) {
+      $this->productStore->setIfNotExists($asin, FALSE, 0);
+    }
+    if ($this->productStore->hasStaleData()) {
+      $this->queue->createItem(['collection' => ProductStore::COLLECTION_PRODUCTS]);
+    }
+  }
+
+  /**
+   * Fetch products directly from amazon.
    *
    * @param string[] $asins
    *   Product ASINs.
    *
    * @return array
-   *   Build.
+   *   Associative array with ASIN-number as key, and product data as values.
+   *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
-   * @throws AmazonServiceUnavailableException
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
-  public function fetchProductData(array $asins) {
-    $asins = array_unique($asins);
-    $product_data = $this->productStore->getMultiple($asins);
-    $fetch_asins = array_diff($asins, array_keys($product_data));
+  protected function fetchAmazonProducts(array $asins) {
+    $product_data = [];
+    $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
+    $expected_lock_time = $requests_per_second_limit * count($asins) / 10;
+    if (!$this->lock->acquire(__METHOD__, min(30, $expected_lock_time + 5))) {
+      throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
+    }
 
-    if (!empty($fetch_asins)) {
+    $processed = [];
+    // Amazon api allows querying a maximum of 10 products per single request.
+    foreach (array_chunk($asins, 10) as $asins_chunk) {
       $amazon_data = [];
-      $lock_timeout = min(1, 1 / $this->maxRequestPerSecond);
-      if (!$this->lock->acquire(__METHOD__, $lock_timeout)) {
-        $this->lock->wait(__METHOD__, 3);
-      }
+      $result = $this->getAmazonApi()->lookup($asins_chunk, ['Offers']);
+      // We don't release the lock here to keep within throttling limits.
+      foreach ($result as $item) {
+        $product_available = FALSE;
+        $price = NULL;
+        $currency = NULL;
 
-      if ($this->lock->acquire(__METHOD__, $lock_timeout)) {
-        $result = $this->getAmazonApi()->lookup($fetch_asins, ['Offers']);
-        // We don't release the lock here to keep within throttling limits.
-        foreach ($result as $item) {
-          $product_available = FALSE;
-          $price = NULL;
-          $currency = NULL;
-
-          if (!empty($item->Offers->Offer->OfferListing->Price)) {
-            $product_available = TRUE;
-            $price = (string) $item->Offers->Offer->OfferListing->Price->Amount;
-            $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
-          }
-
-          $amazon_data[(string) $item->ASIN] = [
-            'ASIN' => (string) $item->ASIN,
-            'title' => (string) $item->ItemAttributes->Title,
-            'url' => (string) $item->DetailPageURL,
-            'img_src' => (string) $item->MediumImage->URL,
-            'price' => $price ? number_format((float) $price / 100, 2, ',', '') : NULL,
-            'currency' => $currency,
-            'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
-            'product_group' => (string) $item->ItemAttributes->ProductGroup,
-            'product_available' => $product_available,
-          ];
+        if (!empty($item->Offers->Offer->OfferListing->Price)) {
+          $product_available = TRUE;
+          $price = (string) $item->Offers->Offer->OfferListing->Price->Amount;
+          $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
         }
-      }
 
-      // An expiration of at least one day should be enough to not run into
-      // amazons throttling limits.
-      $expire = 3600 * 24 + rand(0, 3600 * 24);
-
-      if (!empty($amazon_data)) {
-        $this->productStore->setMultipleWithExpire($amazon_data, $expire);
-        $product_data += $amazon_data;
+        $amazon_data[(string) $item->ASIN] = [
+          'ASIN' => (string) $item->ASIN,
+          'title' => (string) $item->ItemAttributes->Title,
+          'url' => (string) $item->DetailPageURL,
+          'img_src' => (string) $item->MediumImage->URL,
+          'price' => $price ? number_format((float) $price / 100, 2, ',', '') : NULL,
+          'currency' => $currency,
+          'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
+          'product_group' => (string) $item->ItemAttributes->ProductGroup,
+          'product_available' => $product_available,
+        ];
       }
 
       // Also cache asins for which we couldn't get any data or else we would
       // query the API again using up the request limit.
-      $unknown_asins = array_diff($asins, array_keys($amazon_data));
-      if (!empty($unknown_asins)) {
-        $this->productStore->setMultipleWithExpire(array_fill_keys($unknown_asins, FALSE), $expire);
+      foreach ($asins_chunk as $asin) {
+        if (empty($amazon_data[$asin])) {
+          $amazon_data[$asin] = FALSE;
+        }
+      }
+
+      if (!empty($amazon_data)) {
+        $this->productStore->setMultiple($amazon_data);
+        $product_data += $amazon_data;
+      }
+
+      $processed = array_merge($processed, $asins_chunk);
+      if (count($processed) != count($asins)) {
+        usleep(round($requests_per_second_limit * 1000 * 1000));
       }
     }
 
-    // Only return valid data.
-    return array_filter($product_data);
-  }
-
-  /**
-   * Invalidates cached data for specified ASINs.
-   *
-   * @param string[] $asins
-   *   Product ASINs.
-   */
-  public function invalidateCache(array $asins) {
-    $this->productStore->deleteMultiple($asins);
+    $this->lock->release(__METHOD__);
+    return $product_data;
   }
 
 }

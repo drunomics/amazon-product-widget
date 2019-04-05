@@ -9,10 +9,13 @@ services:
     arguments: ['@current_route_match', '@amazon_product_widget.settings']
     tags:
       - { name: event_subscriber }
-  amazon_product_widget.product_storage:
-    class: Drupal\Core\KeyValueStore\KeyValueStoreExpirableInterface
-    factory: keyvalue.expirable:get
-    arguments: ['amazon_product_widget.products']
+  amazon_product_widget.product_store_factory:
+    class: Drupal\amazon_product_widget\ProductStoreFactory
+    arguments: ['@serialization.phpserialize', '@database']
   amazon_product_widget.product_service:
     class: Drupal\amazon_product_widget\ProductService
-    arguments: ['@amazon_product_widget.product_storage', '@lock', '@config.factory']
+    arguments: ['@amazon_product_widget.product_store_factory', '@lock', '@config.factory', '@amazon_product_widget.queue_factory']
+  amazon_product_widget.queue_factory:
+    class: Drupal\Core\Queue\QueueInterface
+    factory: queue:get
+    arguments: ['amazon_product_widget.product_data_update']
