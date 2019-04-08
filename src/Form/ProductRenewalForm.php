@@ -56,6 +56,11 @@ class ProductRenewalForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
 
+    $form['info'] = [
+      '#type' => 'markup',
+      '#markup' => $this->t('Amazon product data is stored locally for usage with the Amazon field widget. The products are cached locally and will be renewed regularly via cronjob. With this form the products can be fetched from Amazon and put into the system instantly.'),
+    ];
+
     $form['asins'] = [
       '#type' => 'textarea',
       '#title' => $this->t('ASINs'),
@@ -70,7 +75,7 @@ class ProductRenewalForm extends FormBase {
 
     $form['requests_per_day'] = [
       '#type' => 'markup',
-      '#markup' => $this->t('Currently %current_requests out of %max_request maximum allowed requests per day used. Note that there is also a cronjob which updates products older than one day which also uses up the request limit.', $requests_per_day_options),
+      '#markup' => $this->t('Currently %current_requests out of %max_request maximum allowed requests per day used.', $requests_per_day_options),
     ];
 
     $form['actions'] = [
