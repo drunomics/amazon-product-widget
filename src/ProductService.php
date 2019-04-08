@@ -180,7 +180,7 @@ class ProductService {
    *
    * @throws \Exception
    */
-  public function queueProductDataRenewal(array $asins = []) {
+  public function queueProductRenewal(array $asins = []) {
     foreach ($asins as $asin) {
       $this->productStore->setIfNotExists($asin, FALSE, 0);
     }

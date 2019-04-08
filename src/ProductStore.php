@@ -119,7 +119,7 @@ class ProductStore extends DatabaseStorage {
    *
    * The limit can be configured like this:
    * @code
-   *   $settings['amazon_product_widget.products.limit'] = 500;
+   *   $settings['amazon_product_widget.products.renewal_limit'] = 500;
    * @endcode
    *
    * @param int $limit

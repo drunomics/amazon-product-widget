@@ -46,7 +46,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
 function amazon_product_widget_cron() {
   /** @var \Drupal\amazon_product_widget\ProductService $product_service */
   $product_service = \Drupal::service('amazon_product_widget.product_service');
-  $product_service->queueProductDataRenewal();
+  $product_service->queueProductRenewal();
 }
 
 /**

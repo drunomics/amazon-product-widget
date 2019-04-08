@@ -175,12 +175,12 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
    * {@inheritdoc}
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
-    static $asinsQueued = FALSE;
+    static $asins_queued = FALSE;
     foreach ($values as &$value) {
       if (!empty($value['asins']) && is_array($value['asins'])) {
-        if (!$asinsQueued) {
-          $this->productService->queueProductDataRenewal($value['asins']);
-          $asinsQueued = TRUE;
+        if (!$asins_queued) {
+          $this->productService->queueProductRenewal($value['asins']);
+          $asins_queued = TRUE;
         }
         $value['asins'] = implode(",", array_filter($value['asins']));
       }

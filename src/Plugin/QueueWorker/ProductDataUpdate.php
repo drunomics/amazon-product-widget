@@ -10,7 +10,7 @@ use Drupal\Core\Queue\RequeueException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Updates product data via amazon api.
+ * Updates locally cached product data via Amazon API.
  *
  * @QueueWorker(
  *   id = "amazon_product_widget.product_data_update",
@@ -37,7 +37,7 @@ class ProductDataUpdate extends QueueWorkerBase implements ContainerFactoryPlugi
   protected static $processed = [];
 
   /**
-   * Constructs a new LocaleTranslation object.
+   * Constructor.
    *
    * @param array $configuration
    *   A configuration array containing information about the plugin instance.
@@ -74,7 +74,7 @@ class ProductDataUpdate extends QueueWorkerBase implements ContainerFactoryPlugi
     $outdated_asins = $store->getOutdatedKeys();
     $this->productService->getProductData($outdated_asins, TRUE);
 
-    $this->getLogger('product_price')->info('Updated %number amazon product data.', [
+    $this->getLogger('amazon_product_widget')->info('Updated %number amazon product data.', [
       '%number' => count($outdated_asins),
     ]);
 
