@@ -2,7 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Form;
 
-use Drupal\amazon_product_widget\Exception\ProductServiceException;
+use Drupal\amazon_product_widget\Exception\AmazonServiceException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -102,7 +102,7 @@ class ProductRenewalForm extends FormBase {
     try {
       $product_data = $this->productService->getProductData($asins, TRUE);
     }
-    catch (ProductServiceException $e) {
+    catch (AmazonServiceException $e) {
       $this->messenger()->addError($e->getMessage());
       $form_state->setRebuild(TRUE);
       return;
