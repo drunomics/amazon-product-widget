@@ -14,7 +14,7 @@ services:
     arguments: ['@serialization.phpserialize', '@database']
   amazon_product_widget.product_service:
     class: Drupal\amazon_product_widget\ProductService
-    arguments: ['@amazon_product_widget.product_store_factory', '@lock', '@config.factory', '@amazon_product_widget.queue_factory']
+    arguments: ['@amazon_product_widget.product_store_factory', '@state', '@lock', '@config.factory', '@amazon_product_widget.queue_factory']
   amazon_product_widget.queue_factory:
     class: Drupal\Core\Queue\QueueInterface
     factory: queue:get

@@ -39,7 +39,7 @@ class ProductStore extends DatabaseStorage {
    */
   protected function getNextRenewalTime() {
     // Read the configured renewal time in hours.
-    return time() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal', 24) * 3600;
+    return time() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_time', 48) * 3600;
   }
 
   /**
@@ -129,7 +129,7 @@ class ProductStore extends DatabaseStorage {
    * @return string[]
    */
   public function getOutdatedKeys($limit = NULL) {
-    $limit = isset($limit) ? $limit : Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.limit', 100);
+    $limit = isset($limit) ? $limit : Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_limit', 100);
 
     $result = $this->connection->queryRange('SELECT name FROM {' . $this->connection->escapeTable($this->table) . '} WHERE collection = :collection AND renewal < :renewal', 0, $limit, [
       ':collection' => $this->collection,

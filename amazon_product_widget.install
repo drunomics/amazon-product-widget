@@ -51,6 +51,13 @@ function amazon_product_widget_schema() {
 }
 
 /**
+ * Implements hook_uninstall().
+ */
+function amazon_product_widget_uninstall() {
+  \Drupal::configFactory()->getEditable('amazon_product_widget.settings')->delete();
+}
+
+/**
  * Create 'amazon_product_widget_key_value' database table.
  */
 function amazon_product_widget_update_8001() {

@@ -14,6 +14,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class ProductRenewalForm extends FormBase {
 
   /**
+   * Maximum number of ASINs allowed to request per form submit.
+   */
+  const MAX_ASINS = 100;
+
+  /**
    * Product service.
    *
    * @var \Drupal\amazon_product_widget\ProductService
@@ -54,8 +59,18 @@ class ProductRenewalForm extends FormBase {
     $form['asins'] = [
       '#type' => 'textarea',
       '#title' => $this->t('ASINs'),
-      '#description' => $this->t('Input one or more Amazon Standard Identification Numbers (ASINs). These can be separated by using a `,` or put one ASIN per line. Maximum  number of 10 ASINs are allowed per request.'),
+      '#description' => $this->t('Input one or more Amazon Standard Identification Numbers (ASINs). These can be separated by using a `,` or put one ASIN per line. Since the Amazon API allows querying 10 products per single request, it is efficient to input a multiple of 10. A maximum of %max_asins ASINs are allowed in this form.', ['%max_asins' => static::MAX_ASINS]),
       '#required' => TRUE,
+    ];
+
+    $requests_per_day_options = [
+      '%current_requests' => $this->productService->getTodaysRequestCount(),
+      '%max_request' => $this->productService->getMaxRequestsPerDay(),
+    ];
+
+    $form['requests_per_day'] = [
+      '#type' => 'markup',
+      '#markup' => $this->t('Currently %current_requests out of %max_request maximum allowed requests per day used. Note that there is also a cronjob which updates products older than one day which also uses up the request limit.', $requests_per_day_options),
     ];
 
     $form['actions'] = [
@@ -74,8 +89,8 @@ class ProductRenewalForm extends FormBase {
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     $asins = $this->getAsinValues($form_state);
-    if (count($asins) > 10) {
-      $form_state->setErrorByName('asins', $this->t('Maximum of 10 ASINs allowed per request.'));
+    if (count($asins) > static::MAX_ASINS) {
+      $form_state->setErrorByName('asins', $this->t('Maximum of %max_asins ASINs allowed.', ['%max_asins' => static::MAX_ASINS]));
     }
   }
 

@@ -179,7 +179,7 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
     foreach ($values as &$value) {
       if (!empty($value['asins']) && is_array($value['asins'])) {
         if (!$asinsQueued) {
-          $this->productService->queueFetchProductData($value['asins']);
+          $this->productService->queueProductDataRenewal($value['asins']);
           $asinsQueued = TRUE;
         }
         $value['asins'] = implode(",", array_filter($value['asins']));

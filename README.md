@@ -2,18 +2,13 @@
 
 Provides a field widget to render amazon products given ASINs.
 
-**Caching layers**
+The product data will be fetched from Amazon using the [Product Advertising API](https://docs.aws.amazon.com/AWSECommerceService/latest/DG/Welcome.html).
+Once the data is fetched it will be cached locally to stay withins Amazons request limit.
 
-Product data fetched directly from the Amazon API will be cached for a
-random amount between one and two days. This prevents product data being
-fetched constantly or reaching amazons throttle limits.
-
-On top of that the widget will be loaded via Ajax, and the cache
-expiration of the rendered response can be configured via the setting
-`render_max_age` which defaults to one hour. The purpose of this is,
-that this way an article can be cached indefinitely but the amazon
-products will be updated regularly.
-
+On top of that the widget itself will be loaded via Ajax which will be cached
+in the response. This way an article or page can be cached indefinitely but the 
+amazon products will be updated regularly disregarding the sites overall caching 
+strategy.
 
 ## Table of content
 
@@ -23,6 +18,9 @@ products will be updated regularly.
     * [Requirements](#requirements)
     * [Installation](#installation)
     * [Configuration](#configuration)
+      * [Amazon settings configuration](#amazon-settings-configuration)
+      * [Amazon product widget configuration](#amazon-product-widget-configuration)
+      * [Caching and request limits](#caching-and-request-limits)
     * [Usage](#usage)
     * [Maintainers](#maintainers)
 
@@ -35,8 +33,8 @@ products will be updated regularly.
 
 ## Requirements
 
-You will need an amazon account for the Product Advertising API to get
-the api credentials.
+You will need an Amazon Associates account and register it for the Product 
+Advertising API to get the credentials needed.
 
 The module requires the drupal\amazon module with the following patches:
 
@@ -51,28 +49,61 @@ The module requires the drupal\amazon module with the following patches:
 ## Installation
 
  * `composer require drupal/amazon:2.x-dev`
- * Either add patches manually or set `enable-patching` to true in
-   the projects root composer.json (see [Requirements](#requirements)).
+ * Either add patches manually or set `enable-patching` to true in the projects 
+   root composer.json (see [Requirements](#requirements)).
  * Install this module as you would a normal Drupal module
 
 ## Configuration
 
- * Set following amazon.settings:
-    * access_key
-    * access_secret
-    * associates_id
-    * locale
- * Add the `Amazon product widget` field to a node or paragraph and
-   configure form & display.
+### Amazon settings configuration
+
+Set following `amazon.settings` configuration:
+
+  * `access_key` - Amazon API access key
+  * `access_secret` - Amazon API secret
+  * `associates_id` - Amazon API associates id
+  * `locale` - Amazon page for your country (eg: `com` for USA, `de` for germany)
+ 
+### Amazon product widget configuration 
+
+Set the following `amazon_product_widget.settings` configuration:
+
+  * `max_requests_per_day` - Amazons own request per day limit (default 8640)
+    (see [Caching and request limits](#caching-and-request-limits))
+  * `max_requests_per_second` - Amazons own request per second limit (default 1)
+    (see [Caching and request limits](#caching-and-request-limits))
+  * `render_max_age` - Render cache for the widget in seconds
+  * `call_to_action_text` - Link text for the product which leads to amazon page
+ 
+Add the `Amazon product widget` field to a node or paragraph and configure 
+form & display.
+   
+### Caching and request limits
+
+Amazon has very specific requirements regarding request limits (see [Efficiency Guidelines](https://docs.aws.amazon.com/AWSECommerceService/latest/DG/TroubleshootingApplications.html#efficiency-guidelines).)
+so it is necessary to cache the data locally and update it on a regular basis
+via cronjob. At least there is a base limit per day (8640) and one per second, 
+these can be overriden if needed. 
+
+When the data is saved it will set a renewal date (which is 48 hours by default)
+for when the cronjob will try to update the data form amazon again.
+The next renewal can be overridden in the setting (in hours):
+  
+  `amazon_product_widget.products.renewal_time`
+  
+The number of items which will be renewed per cron rum is by default 100, and
+can be set in this setting:
+
+  `amazon_product_widget.products.renewal_limit`
 
 ## Usage
 
-Enter one or more ASINs (Amazon Standard Identification Numbers) for the
-products which should be displayed by default. (ASINs) are unique blocks
-of 10 letters and/or numbers that identify items. You can find the ASIN
+In the form widget, enter one or more ASINs for the products which should be 
+displayed by default. Amazon Standard Identification Numbers (ASINs) are unique 
+blocks of 10 letters and/or numbers that identify items. You can find the ASIN
 on the item's product information page at Amazon.
 
-Optionally enter search terms which will be used when the products are
+Optionally enter search terms which will be used when the products are 
 unavailable to list the search results in place of the entered products.
 
 ## Maintainers

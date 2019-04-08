@@ -8,6 +8,7 @@ use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Queue\QueueInterface;
+use Drupal\Core\State\StateInterface;
 
 /**
  * Provides amazon product data.
@@ -20,6 +21,13 @@ class ProductService {
    * @var \Drupal\amazon_product_widget\productStore
    */
   protected $productStore;
+
+  /**
+   * State.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
 
   /**
    * Lock.
@@ -68,6 +76,8 @@ class ProductService {
    *
    * @param \Drupal\amazon_product_widget\ProductStoreFactory $store_factory
    *   Product store.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   State.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   Lock.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
@@ -75,8 +85,9 @@ class ProductService {
    * @param \Drupal\Core\Queue\QueueInterface $queue
    *   The queue.
    */
-  public function __construct(ProductStoreFactory $store_factory, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
+    $this->state = $state;
     $this->lock = $lock;
     $this->queue = $queue;
 
@@ -142,13 +153,16 @@ class ProductService {
    */
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
+    $product_data = [];
 
     if ($renew) {
-      $this->productStore->deleteMultiple($asins);
+      $fetch_asins = $asins;
     }
-
-    $product_data = $this->productStore->getMultiple($asins);
-    $fetch_asins = array_diff($asins, array_keys($product_data));
+    else {
+      // Fetch data from the cache first.
+      $product_data = $this->productStore->getMultiple($asins);
+      $fetch_asins = array_diff($asins, array_keys($product_data));
+    }
 
     if (!empty($fetch_asins)) {
       $product_data += $this->fetchAmazonProducts($fetch_asins);
@@ -161,11 +175,12 @@ class ProductService {
    * Queue fetching of stale product data in the store.
    *
    * @param string[] $asins
-   *   (optional) Provide ASINs which are not in the store yet.
+   *   (optional) Provide ASINs which are not in the store yet, so that they
+   *   get fetched too.
    *
    * @throws \Exception
    */
-  public function queueFetchProductData(array $asins = []) {
+  public function queueProductDataRenewal(array $asins = []) {
     foreach ($asins as $asin) {
       $this->productStore->setIfNotExists($asin, FALSE, 0);
     }
@@ -195,12 +210,19 @@ class ProductService {
       throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
     }
 
-    $processed = [];
-    // Amazon api allows querying a maximum of 10 products per single request.
-    foreach (array_chunk($asins, 10) as $asins_chunk) {
+    $fetch_asins = $asins;
+    while ($fetch_asins) {
+      // Amazon API allows querying 10 products per single request.
+      $asins_chunk = array_splice($fetch_asins, 0, 10);
       $amazon_data = [];
+
+      if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
+        throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+      }
+
+      $this->increaseTodaysRequestCount();
       $result = $this->getAmazonApi()->lookup($asins_chunk, ['Offers']);
-      // We don't release the lock here to keep within throttling limits.
+
       foreach ($result as $item) {
         $product_available = FALSE;
         $price = NULL;
@@ -238,14 +260,59 @@ class ProductService {
         $product_data += $amazon_data;
       }
 
-      $processed = array_merge($processed, $asins_chunk);
-      if (count($processed) != count($asins)) {
+      // Wait for the request limit to pass if there are items left to process.
+      if (!empty($fetch_asins)) {
         usleep(round($requests_per_second_limit * 1000 * 1000));
       }
     }
 
     $this->lock->release(__METHOD__);
     return $product_data;
+  }
+
+  /**
+   * Get the maximum allowed number of requests per day to query the amazon api.
+   *
+   * @return int
+   */
+  public function getMaxRequestsPerDay() {
+    return $this->maxRequestPerDay;
+  }
+
+  /**
+   * Get number of requests sent to amazon today.
+   *
+   * @return int
+   *   The number of requests made to amazon today.
+   */
+  public function getTodaysRequestCount() {
+    $default = ['date' => date('Ymd'), 'count' => 0];
+    $count = $this->state->get('amazon_product_widget.todays_request_count', $default);
+    if ($count['date'] != date('Ymd')) {
+      $this->state->set('amazon_product_widget.todays_request_count', $default);
+      return 0;
+    }
+    return $count['count'];
+  }
+
+  /**
+   * Increase the internal counter for number of requests made to amazon today.
+   *
+   * @param int $increment
+   *   Number of requests which should be added to the current counter.
+   *
+   * @return int
+   *   The number of requests made to amazon today.
+   */
+  protected function increaseTodaysRequestCount($increment = 1) {
+    $default = ['date' => date('Ymd'), 'count' => 0];
+    $count = $this->state->get('amazon_product_widget.todays_request_count', $default);
+    if ($count['date'] != date('Ymd')) {
+      $count['count'] = 0;
+    }
+    $count['count'] += $increment;
+    $this->state->set('amazon_product_widget.todays_request_count', $count);
+    return $count['count'];
   }
 
 }
