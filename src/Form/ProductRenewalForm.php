@@ -9,12 +9,12 @@ use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Provides a Amazon Product Widget form.
+ * Provides a form to manually renew cached product data.
  */
 class ProductRenewalForm extends FormBase {
 
   /**
-   * Maximum number of ASINs allowed to request per form submit.
+   * Maximum number of ASINs allowed to refresh per form submit.
    */
   const MAX_ASINS = 100;
 
@@ -58,7 +58,7 @@ class ProductRenewalForm extends FormBase {
 
     $form['info'] = [
       '#type' => 'markup',
-      '#markup' => $this->t('Amazon product data is stored locally for usage with the Amazon field widget. The products are cached locally and will be renewed regularly via cronjob. With this form the products can be fetched from Amazon and put into the system instantly.'),
+      '#markup' => $this->t('Amazon product data is stored locally for usage with the Amazon field widget and will be renewed regularly via cronjob. With this form products can be refreshed instantly.'),
     ];
 
     $form['asins'] = [
@@ -127,10 +127,10 @@ class ProductRenewalForm extends FormBase {
     ];
 
     if (!empty($valid_asins)) {
-      $this->messenger()->addStatus($this->t('Renewed product data for: %valid_asins', $message_options));
+      $this->messenger()->addStatus($this->t('Renewed products for: %valid_asins', $message_options));
     }
     if (!empty($invalid_asins)) {
-      $this->messenger()->addWarning($this->t('No data available for: %invalid_asins', $message_options));
+      $this->messenger()->addWarning($this->t('No products found for: %invalid_asins', $message_options));
     }
 
   }

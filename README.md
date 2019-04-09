@@ -21,6 +21,7 @@ strategy.
       * [Amazon settings configuration](#amazon-settings-configuration)
       * [Amazon product widget configuration](#amazon-product-widget-configuration)
       * [Caching and request limits](#caching-and-request-limits)
+      * [Permissions](#permissions)
     * [Usage](#usage)
     * [Maintainers](#maintainers)
 
@@ -91,11 +92,16 @@ The next renewal can be overridden in the setting (in hours):
   
   `amazon_product_widget.products.renewal_time`
   
-The number of items which will be renewed per cron rum is by default 100, and
+The number of items which will be renewed per cron run is by default 100, and
 can be set in this setting:
 
   `amazon_product_widget.products.renewal_limit`
 
+### Permissions
+
+  * `Renew amazon product data` - for being able to manually refresh the 
+    product data via `/admin/config/services/amazon/product-renewal`
+ 
 ## Usage
 
 In the form widget, enter one or more ASINs for the products which should be 
@@ -103,7 +109,7 @@ displayed by default. Amazon Standard Identification Numbers (ASINs) are unique
 blocks of 10 letters and/or numbers that identify items. You can find the ASIN
 on the item's product information page at Amazon.
 
-Optionally enter search terms which will be used when the products are 
+Optionally enter search terms which will be used when the products are
 unavailable to list the search results in place of the entered products.
 
 ## Maintainers

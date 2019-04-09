@@ -138,7 +138,7 @@ class ProductService {
    * Gets amazon product data.
    *
    * Since this will use amazon requests which are limited, never use this
-   * method in a way where the asins are provided by anonymous users input.
+   * method in a way where the ASINs are provided by anonymous users input.
    *
    * @param string[] $asins
    *   Product ASINs.
@@ -147,6 +147,7 @@ class ProductService {
    *
    * @return array
    *   Associative array with ASIN-number as key, and product data as values.
+   *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
@@ -308,7 +309,7 @@ class ProductService {
     $default = ['date' => date('Ymd'), 'count' => 0];
     $count = $this->state->get('amazon_product_widget.todays_request_count', $default);
     if ($count['date'] != date('Ymd')) {
-      $count['count'] = 0;
+      $count = $default;
     }
     $count['count'] += $increment;
     $this->state->set('amazon_product_widget.todays_request_count', $count);

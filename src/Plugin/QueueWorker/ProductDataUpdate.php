@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Plugin\QueueWorker;
 
+use Drupal\amazon_product_widget\Exception\AmazonServiceException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Logger\LoggerChannelTrait;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
@@ -72,11 +73,16 @@ class ProductDataUpdate extends QueueWorkerBase implements ContainerFactoryPlugi
 
     $store = $this->productService->getProductStore();
     $outdated_asins = $store->getOutdatedKeys();
-    $this->productService->getProductData($outdated_asins, TRUE);
 
-    $this->getLogger('amazon_product_widget')->info('Updated %number amazon product data.', [
-      '%number' => count($outdated_asins),
-    ]);
+    try {
+      $this->productService->getProductData($outdated_asins, TRUE);
+      $this->getLogger('amazon_product_widget')->info('QueueWorker: Updated %number amazon products.', [
+        '%number' => count($outdated_asins),
+      ]);
+    }
+    catch (AmazonServiceException $e) {
+      $this->getLogger('amazon_product_widget')->error($e->getMessage());
+    }
 
     // Allow the queue to finish processing items when invoked multiple times -
     // without cron.

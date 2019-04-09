@@ -169,19 +169,21 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
     }
   }
 
-  protected static $asinsQueued = FALSE;
-
   /**
    * {@inheritdoc}
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
+    // This method is called multiple times per submit, queue only once.
     static $asins_queued = FALSE;
+
     foreach ($values as &$value) {
       if (!empty($value['asins']) && is_array($value['asins'])) {
+        // Make sure new products will be fetched from Amazon eventually.
         if (!$asins_queued) {
           $this->productService->queueProductRenewal($value['asins']);
           $asins_queued = TRUE;
         }
+        // Convert to internal format (comma separated list of asins).
         $value['asins'] = implode(",", array_filter($value['asins']));
       }
     }

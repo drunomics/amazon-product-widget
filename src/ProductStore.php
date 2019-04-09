@@ -9,12 +9,19 @@ use Drupal\Core\KeyValueStore\DatabaseStorage;
 use Drupal\Core\Site\Settings;
 
 /**
- * A custom key value storage that is extended with necessary filters.
+ * Key value store with renewal field for amazon products.
+ *
+ * The products will be stored indefinitely but will be refreshed via cronjob.
+ * The day they will be refreshed (renewal date) can controlled by the setting:
+ * `amazon_product_widget.products.renewal_time` which sets the hours for the
+ * next renewal (default 48) for products.
+ *
+ * @see ProductStore::getNextRenewalTime()
  */
 class ProductStore extends DatabaseStorage {
 
   /**
-   * Collections for product data.
+   * Collection for product data.
    */
   const COLLECTION_PRODUCTS = 'products';
 
@@ -140,7 +147,7 @@ class ProductStore extends DatabaseStorage {
   }
 
   /**
-   * Check whether there is outdated product data in the store.
+   * Check whether there is data available for renewal.
    *
    * @return bool
    */
