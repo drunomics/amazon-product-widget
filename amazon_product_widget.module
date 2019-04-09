@@ -39,3 +39,32 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
     ],
   ];
 }
+
+/**
+ * Implements hook_cron().
+ */
+function amazon_product_widget_cron() {
+  /** @var \Drupal\amazon_product_widget\ProductService $product_service */
+  $product_service = \Drupal::service('amazon_product_widget.product_service');
+  $product_service->queueProductRenewal();
+}
+
+/**
+ * Get all ASINS which are stored in product widgets.
+ */
+function amazon_product_widget_get_all_asins() {
+  /** @var \Drupal\Core\Entity\EntityFieldManagerInterface $field_manager */
+  $field_manager = \Drupal::service('entity_field.manager');
+  $fields_map = $field_manager->getFieldMapByFieldType('amazon_product_widget_field_type');
+  $asins = [];
+  foreach ($fields_map as $entity_type => $fields) {
+    foreach ($fields as $fieldname => $field) {
+      $result = \Drupal::database()->query("SELECT {$fieldname}_asins FROM {$entity_type}__{$fieldname}")->fetchCol();
+      foreach ($result as $asin_list) {
+        $asin_ids = explode(",", $asin_list);
+        $asins += array_combine($asin_ids, $asin_ids);
+      }
+    }
+  }
+  return $asins;
+}

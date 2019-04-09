@@ -1,0 +1,4 @@
+renew amazon product data:
+  title: 'Renew amazon product data'
+  description: 'Allow the renewal of cached amazon product data.'
+  restrict access: true

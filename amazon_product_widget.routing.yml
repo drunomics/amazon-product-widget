@@ -5,3 +5,11 @@ amazon_product_widget.product_api:
   requirements:
     # Amazon products can be accessed by anyone.
     _access: 'TRUE'
+
+amazon_product_widget.product_renewal:
+  path: '/admin/config/services/amazon/product-renewal'
+  defaults:
+    _title: 'Amazon Product Renewal'
+    _form: 'Drupal\amazon_product_widget\Form\ProductRenewalForm'
+  requirements:
+    _permission: 'renew amazon product data'

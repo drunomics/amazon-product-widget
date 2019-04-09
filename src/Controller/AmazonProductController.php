@@ -96,7 +96,9 @@ class AmazonProductController extends ControllerBase {
     $product_data = [];
 
     try {
-      $product_data = $this->productService->fetchProductData($asins);
+      $product_data = $this->productService->getProductData($asins);
+      // Filter invalid products.
+      $product_data = array_filter($product_data);
 
       $product_build = [];
       foreach ($product_data as $data) {
