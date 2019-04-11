@@ -97,6 +97,17 @@ class ProductRenewalForm extends FormBase {
     if (count($asins) > static::MAX_ASINS) {
       $form_state->setErrorByName('asins', $this->t('Maximum of %max_asins ASINs allowed.', ['%max_asins' => static::MAX_ASINS]));
     }
+
+    $invalid_asins = [];
+    foreach ($asins as $asin) {
+      if (!amazon_product_widget_is_valid_asin($asin)) {
+        $invalid_asins[] = $asin;
+      }
+    }
+
+    if (count($invalid_asins)) {
+      $form_state->setErrorByName('asins', $this->t('Invalid ASINS: %asins', ['%asins' => implode(", ", $invalid_asins)]));
+    }
   }
 
   /**

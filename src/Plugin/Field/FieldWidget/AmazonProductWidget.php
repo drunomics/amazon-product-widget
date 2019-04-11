@@ -159,7 +159,11 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
     $asins = [];
     foreach (Element::children($element) as $key) {
       if (!empty($element[$key]['#value'])) {
-        $asins[$key] = $element[$key]['#value'];
+        $asin = $element[$key]['#value'];
+        if (!amazon_product_widget_is_valid_asin($asin)) {
+          $form_state->setError($element[$key], $this->t('Invalid ASIN: %asin', ['%asin' => $asin]));
+        }
+        $asins[$key] = $asin;
       }
     }
 

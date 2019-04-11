@@ -50,6 +50,23 @@ function amazon_product_widget_cron() {
 }
 
 /**
+ * Check whether the provided ASIN is valid.
+ *
+ * @param string $asin
+ *   Amazon standard identification number.
+ *
+ * @return bool
+ *   TRUE if valid.
+ */
+function amazon_product_widget_is_valid_asin($asin) {
+  $asin = trim($asin);
+  if (strlen($asin) == 10 && !preg_match('/\s/', $asin)) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
  * Get all ASINS which are stored in product widgets.
  */
 function amazon_product_widget_get_all_asins() {
