@@ -113,6 +113,7 @@ class AmazonProductController extends ControllerBase {
           '#currency_symbol' => $data['currency'],
           '#manufacturer' => $data['manufacturer'],
           '#price' => $data['price'],
+          '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
         ];
       }
 
