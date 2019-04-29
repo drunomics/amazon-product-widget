@@ -2,15 +2,18 @@
   <div class="amazon-product__image" style="background-image: url('{{img_src}}');"></div>
   <div class="amazon-product__content">
     <header class="amazon-product__details">
-        <div class="amazon-product__brand">
-            {{ manufacturer }}
-        </div>
-        <div class="amazon-product__name">
-            {{ title }}
-        </div>
-        <div class="amazon-product__price">
-            {{ currency_symbol }} {{ price }}
-        </div>
+      <div class="amazon-product__brand">
+          {{ manufacturer }}
+      </div>
+      <div class="amazon-product__name">
+          {{ title }}
+      </div>
+      <div class="amazon-product__price">
+          {{ currency_symbol }} {{ price }}
+      </div>
+      {% if is_eligible_for_prime %}
+        <div class="amazon-product__prime"></div>
+      {% endif %}
     </header>
     <a class="amazon-product__link" target="_blank" rel="noopener nofollow" href="{{ url }}">
       <span class="amazon-product__link__icon"></span>

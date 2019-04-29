@@ -105,6 +105,15 @@
   background-color: #ff9900;
 }
 
+.amazon-product__prime {
+  background-color: #fff;
+  background-image: url('../images/checkPrime.png');
+  background-size: 100%;
+  width: 62px;
+  height: 26px;
+  margin-top: -8px;
+}
+
 /* PRODUCT DISPLAY ORIENTATION SWITCH */
 @media (min-width: 365px) and (max-width: 768px) {
   .amazon-shopping__product-list--3-items  .amazon-product {
