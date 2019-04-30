@@ -49,7 +49,6 @@ class AmazonProductFieldFormatter extends FormatterBase {
     ];
 
     if ($this->getSetting('render_inline')) {
-      /** @var \Drupal\amazon_product_widget\ProductService $product_service */
       $build['#products'] = $this->getProductService()
         ->buildProducts(
           $field->getEntity()->getEntityTypeId(),

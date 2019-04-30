@@ -1,12 +1,12 @@
 <?php
-/**
- * @file
- *
- */
 
 namespace Drupal\amazon_product_widget;
 
+/**
+ * Trait to provide product service.
+ */
 trait ProductServiceTrait {
+
   /**
    * Product service.
    *

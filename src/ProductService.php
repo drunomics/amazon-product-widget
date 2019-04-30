@@ -350,6 +350,7 @@ class ProductService {
    *
    * @return mixed[]
    *   Build array.
+   *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
