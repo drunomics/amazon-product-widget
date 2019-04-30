@@ -2,8 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Controller;
 
-use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
-use Drupal\amazon_product_widget\ProductService;
+use Drupal\amazon_product_widget\ProductServiceTrait;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ImmutableConfig;
@@ -17,19 +16,14 @@ use Drupal\Core\Render\RendererInterface;
  */
 class AmazonProductController extends ControllerBase {
 
+  use ProductServiceTrait;
+
   /**
    * The renderer.
    *
    * @var \Drupal\Core\Render\RendererInterface
    */
   protected $renderer;
-
-  /**
-   * Product service.
-   *
-   * @var \Drupal\amazon_product_widget\ProductService
-   */
-  protected $productService;
 
   /**
    * Amazon product widget settings.
@@ -40,16 +34,12 @@ class AmazonProductController extends ControllerBase {
 
   /**
    * AmazonProductController constructor.
-   *
-   * @param \Drupal\amazon_product_widget\ProductService $product_service
-   *   The product service.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
    * @param \Drupal\Core\Config\ImmutableConfig $settings
    *   Amazon product widget settings.
    */
-  public function __construct(ProductService $product_service, RendererInterface $renderer, ImmutableConfig $settings) {
-    $this->productService = $product_service;
+  public function __construct(RendererInterface $renderer, ImmutableConfig $settings) {
     $this->renderer = $renderer;
     $this->settings = $settings;
   }
@@ -59,7 +49,6 @@ class AmazonProductController extends ControllerBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('amazon_product_widget.product_service'),
       $container->get('renderer'),
       $container->get('config.factory')->get('amazon_product_widget.settings')
     );
@@ -73,67 +62,19 @@ class AmazonProductController extends ControllerBase {
     $entity_type = $request->query->get('entity_type');
     $fieldname = $request->query->get('field');
 
-    $title = '';
-    $asins = [];
-
-    $cache_dependency = new CacheableMetadata();
-
-    /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
-    $storage = $this->entityTypeManager()->getStorage($entity_type);
-    if ($entity = $storage->load($entity_id)) {
-      if ($entity->hasField($fieldname)) {
-        /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $field */
-        $field = $entity->get($fieldname)->first();
-        if ($field instanceof AmazonProductField) {
-          $cache_dependency = CacheableMetadata::createFromObject($entity)->merge($cache_dependency);
-          $asins = $field->getAsins();
-          $title = $field->getTitle();
-        }
-      }
-    }
-
-    $content = NULL;
-    $product_data = [];
-
     try {
-      $product_data = $this->productService->getProductData($asins);
-      // Filter invalid products.
-      $product_data = array_filter($product_data);
-
-      $product_build = [];
-      foreach ($product_data as $data) {
-        $data = (array) $data;
-        $product_build[] = [
-          '#theme' => 'amazon_product_widget_product',
-          '#img_src' => $data['img_src'],
-          '#name' => $data['title'],
-          '#title' => $data['title'],
-          '#url' => $data['url'],
-          '#call_to_action_text' => $this->settings->get('call_to_action_text'),
-          '#currency_symbol' => $data['currency'],
-          '#manufacturer' => $data['manufacturer'],
-          '#price' => $data['price'],
-          '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
-        ];
-      }
-
-      $build = [
-        '#theme' => 'amazon_product_widget_shopping',
-        '#title' => $title,
-        '#products' => $product_build,
-      ];
-
-      $cache_dependency->applyTo($build);
-      $content = $this->renderer->renderRoot($build);
+      $build = $this->getProductService()->buildProducts($entity_type, $entity_id, $fieldname);
     }
     catch (\Exception $e) {
       watchdog_exception('amazon_product_widget', $e);
       // Continue here and cache the empty response.
     }
 
+    $cache_dependency = CacheableMetadata::createFromRenderArray($build);
+    $content = $this->renderer->renderRoot($build);
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cache_dependency);
-    $response->setData(['count' => count($product_data), 'content' => $content]);
+    $response->setData(['count' => count($build['#products']), 'content' => $content]);
     $max_age = $this->settings->get('render_max_age');
     $response->setMaxAge(!empty($max_age) ? $max_age : 3600);
 

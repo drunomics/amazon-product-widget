@@ -5,7 +5,10 @@ namespace Drupal\amazon_product_widget;
 use Drupal\amazon\Amazon;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
+use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\State\StateInterface;
@@ -14,6 +17,20 @@ use Drupal\Core\State\StateInterface;
  * Provides amazon product data.
  */
 class ProductService {
+
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManager
+   */
+  protected $entityTypeManager;
+
+  /**
+   * Amazon product widget settings.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
+  protected $settings;
 
   /**
    * Product store.
@@ -84,13 +101,17 @@ class ProductService {
    *   Config factory.
    * @param \Drupal\Core\Queue\QueueInterface $queue
    *   The queue.
+   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   *   The entity type manager.
    */
-  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->state = $state;
     $this->lock = $lock;
     $this->queue = $queue;
+    $this->entityTypeManager = $entityTypeManager;
 
+    $this->settings = $config->get('amazon_product_widget.settings');
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
     $this->associatesId = $config->get('amazon.settings')->get('associates_id');
@@ -315,6 +336,73 @@ class ProductService {
     $count['count'] += $increment;
     $this->state->set('amazon_product_widget.todays_request_count', $count);
     return $count['count'];
+  }
+
+  /**
+   * Builds products.
+   *
+   * @param string $entity_type
+   *   The entity type.
+   * @param string $entity_id
+   *   The entity id.
+   * @param string $fieldname
+   *   The field name.
+   *
+   * @return mixed[]
+   *   Build array.
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
+   */
+  public function buildProducts($entity_type, $entity_id, $fieldname) {
+    $content = NULL;
+    $title = '';
+    $asins = [];
+    $cache_dependency = new CacheableMetadata();
+
+    /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
+    $storage = $this->entityTypeManager->getStorage($entity_type);
+    if ($entity = $storage->load($entity_id)) {
+      if ($entity->hasField($fieldname)) {
+        /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $field */
+        $field = $entity->get($fieldname)->first();
+        if ($field instanceof AmazonProductField) {
+          $cache_dependency = CacheableMetadata::createFromObject($entity)->merge($cache_dependency);
+          $asins = $field->getAsins();
+          $title = $field->getTitle();
+        }
+      }
+    }
+
+    $product_data = $this->getProductData($asins);
+    // Filter invalid products.
+    $product_data = array_filter($product_data);
+
+    $product_build = [];
+    foreach ($product_data as $data) {
+      $data = (array) $data;
+      $product_build[] = [
+        '#theme' => 'amazon_product_widget_product',
+        '#img_src' => $data['img_src'],
+        '#name' => $data['title'],
+        '#title' => $data['title'],
+        '#url' => $data['url'],
+        '#call_to_action_text' => $this->settings->get('call_to_action_text'),
+        '#currency_symbol' => $data['currency'],
+        '#manufacturer' => $data['manufacturer'],
+        '#price' => $data['price'],
+        '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
+      ];
+    }
+
+    $build = [
+      '#theme' => 'amazon_product_widget_shopping',
+      '#title' => $title,
+      '#products' => $product_build,
+    ];
+
+    $cache_dependency->applyTo($build);
+
+    return $build;
   }
 
 }

@@ -16,6 +16,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'entity_id' => '',
         'entity_type' => '',
         'field' => '',
+        'products' => [],
       ],
     ],
     'amazon_product_widget_shopping' => [

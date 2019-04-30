@@ -63,6 +63,7 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
   public static function defaultSettings() {
     return [
       'max_asins' => 3,
+      'render_inline' => FALSE,
     ] + parent::defaultSettings();
   }
 
