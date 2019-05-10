@@ -266,7 +266,7 @@ class ProductService {
           'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
           'product_group' => (string) $item->ItemAttributes->ProductGroup,
           'product_available' => $product_available,
-          'is_eligible_for_prime' => (bool) $item->Offers->Offer->OfferListing->IsEligibleForPrime,
+          'is_eligible_for_prime' => (bool)(string) $item->Offers->Offer->OfferListing->IsEligibleForPrime, // SimpleXMLElement needs to be casted to string first.
         ];
       }
 
