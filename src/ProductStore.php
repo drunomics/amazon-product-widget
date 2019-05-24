@@ -163,10 +163,10 @@ class ProductStore extends DatabaseStorage {
    * Used for setting the search store key.
    *
    * @param string $search_terms
-   *   (optional) Add a search string like you would input in the Amazon search
+   *   Add a search string like you would input in the Amazon search
    *   bar to fetch results for this string as well.
    * @param string $category
-   *   Amazon Search index, defaults to `All`.
+   *   Amazon Search index.
    *
    * @return string
    */
@@ -184,10 +184,10 @@ class ProductStore extends DatabaseStorage {
    * Used for setting the search store value.
    *
    * @param string $search_terms
-   *   (optional) Add a search string like you would input in the Amazon search
+   *   Add a search string like you would input in the Amazon search
    *   bar to fetch results for this string as well.
    * @param string $category
-   *   Amazon Search index, defaults to `All`.
+   *   Amazon Search index.
    * @param string[] $asins
    *   (optional) Provide ASINs which are not in the store yet, so that they
    *   get fetched too.
