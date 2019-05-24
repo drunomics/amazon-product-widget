@@ -256,6 +256,10 @@ class ProductService {
           $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
         }
 
+        // SimpleXMLElement needs to be casted to string first.
+        $is_eligible_for_prime = isset($item->Offers->Offer->OfferListing->IsEligibleForPrime) ?
+          (bool)(string) $item->Offers->Offer->OfferListing->IsEligibleForPrime : FALSE;
+
         $amazon_data[(string) $item->ASIN] = [
           'ASIN' => (string) $item->ASIN,
           'title' => (string) $item->ItemAttributes->Title,
@@ -266,7 +270,7 @@ class ProductService {
           'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
           'product_group' => (string) $item->ItemAttributes->ProductGroup,
           'product_available' => $product_available,
-          'is_eligible_for_prime' => (bool)(string) $item->Offers->Offer->OfferListing->IsEligibleForPrime, // SimpleXMLElement needs to be casted to string first.
+          'is_eligible_for_prime' => $is_eligible_for_prime
         ];
       }
 
