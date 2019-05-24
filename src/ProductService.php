@@ -5,7 +5,6 @@ namespace Drupal\amazon_product_widget;
 use ApaiIO\ApaiIO;
 use ApaiIO\Configuration\GenericConfiguration;
 use ApaiIO\Operations\Search;
-use Drupal\Core\Queue\QueueFactory;
 use InvalidArgumentException;
 use Drupal\amazon\Amazon;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
@@ -22,6 +21,11 @@ use Drupal\Core\State\StateInterface;
  * Provides amazon product data.
  */
 class ProductService {
+
+  /**
+   * Search index default category.
+   */
+  const AMAZON_CATEGORY_DEFAULT = 'All';
 
   /**
    * The entity type manager.
@@ -252,6 +256,7 @@ class ProductService {
    */
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
+    $asins = array_filter($asins);
     $product_data = [];
 
     if ($renew) {
@@ -278,6 +283,8 @@ class ProductService {
   *
   * @param string $search_terms
   *   A search string like you would input in the Amazon search bar.
+  * @param string $category
+  *   Amazon Search index, defaults to `All`.
   * @param bool $renew
   *   Clear cache and fetch product data from amazon.
   *
@@ -288,15 +295,17 @@ class ProductService {
   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
   */
-  public function getSearchResults($search_terms, $renew = FALSE) {
+  public function getSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT, $renew = FALSE) {
     if (empty($search_terms)) {
       return [];
     }
-    $asins = $this->searchResultStore->get($search_terms);
-    if (empty($asins) || $renew) {
-      $asins = $this->fetchAmazonSearchResults($search_terms);
+    $key = ProductStore::createSearchResultKey($search_terms, $category);
+    $data = $this->searchResultStore->get($key);
+    if (empty($data['result']) || $renew) {
+      $result = $this->fetchAmazonSearchResults($search_terms, $category);
+      return $result;
     }
-    return $asins;
+    return $data['result'];
   }
 
   /**
@@ -309,6 +318,7 @@ class ProductService {
    * @throws \Exception
    */
   public function queueProductRenewal(array $asins = []) {
+    $asins = array_filter($asins);
     foreach ($asins as $asin) {
       $this->productStore->setIfNotExists($asin, FALSE, 0);
     }
@@ -318,17 +328,21 @@ class ProductService {
   }
 
   /**
-   * Queue fetching of stale product data in the store.
+   * Queue fetching of stale search results in the store.
    *
    * @param string $search_terms
    *   (optional) Add a search string like you would input in the Amazon search
    *   bar to fetch results for this string as well.
+   * @param string $category
+   *   Amazon Search index, defaults to `All`.
    *
    * @throws \Exception
    */
-  public function queueSearchResults($search_terms = '') {
+  public function queueSearchResults($search_terms = '', $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
     if (strlen($search_terms)) {
-      $this->searchResultStore->setIfNotExists($search_terms, [], 0);
+      $key = ProductStore::createSearchResultKey($search_terms, $category);
+      $default = ProductStore::createSearchResultData($search_terms, $category);
+      $this->searchResultStore->setIfNotExists($key, $default, 0);
     }
     if ($this->searchResultStore->hasStaleData()) {
       $this->queue->createItem(['collection' => ProductStore::COLLECTION_SEARCH_RESULTS]);
@@ -428,6 +442,8 @@ class ProductService {
    *
    * @param string $search_terms
    *   A search string like you would input in the Amazon search bar.
+   * @param string $category
+   *   Amazon Search index, defaults to `All`.
    *
    * @return string[]
    *   An array of ASIN-numbers which are the top result for that search.
@@ -435,7 +451,7 @@ class ProductService {
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
-  public function fetchAmazonSearchResults($search_terms) {
+  public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
     $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
     // In case other requests preceded this one.
     usleep(round($requests_per_second_limit * 1000 * 1000));
@@ -454,7 +470,7 @@ class ProductService {
     $search = new Search();
     $search
       ->setKeywords($search_terms)
-      ->setCategory('All')
+      ->setCategory($category)
       ->setResponseGroup(array('Small'));
 
     $response = $client->runOperation($search);
@@ -471,7 +487,9 @@ class ProductService {
 
     // Make sure to cache the response even if there are no results, that way
     // we don't query the api every time.
-    $this->searchResultStore->set($search_terms, $asins);
+    $key = ProductStore::createSearchResultKey($search_terms, $category);
+    $data = ProductStore::createSearchResultData($search_terms, $category, $asins);
+    $this->searchResultStore->set($key, $data);
 
     $this->lock->release(__CLASS__);
     return $asins;
@@ -573,7 +591,7 @@ class ProductService {
     }
 
     if (!empty($replace)) {
-      $fallback_asins = $this->getSearchResults($search_terms);
+      $fallback_asins = $this->getSearchResults($search_terms, ProductService::AMAZON_CATEGORY_DEFAULT);
       $fallback_data = $this->getProductData($fallback_asins);
       // Replace outdated products and keep the result order: $fallback_asins
       // contains ordered results (top first).

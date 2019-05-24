@@ -138,7 +138,7 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
       '#type' => 'textfield',
       '#default_value' => isset($items[$delta]->search_terms) ? $items[$delta]->search_terms : NULL,
       '#size' => 60,
-      '#maxlength' => 128,
+      '#maxlength' => 255,
     ];
 
     return $element;

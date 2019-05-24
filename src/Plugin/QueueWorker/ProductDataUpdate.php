@@ -96,14 +96,15 @@ class ProductDataUpdate extends QueueWorkerBase implements ContainerFactoryPlugi
 
       case ProductStore::COLLECTION_SEARCH_RESULTS:
         $search_store = $this->productService->getSearchResultStore();
-        $outdated_search_terms = $search_store->getOutdatedKeys();
+        $outdated_keys = $search_store->getOutdatedKeys();
 
         try {
-          foreach ($outdated_search_terms as $search_term) {
-            $this->productService->getSearchResults($search_term, TRUE);
+          $outdated_data = $search_store->getMultiple($outdated_keys);
+          foreach ($outdated_data as $data) {
+            $this->productService->getSearchResults($data['search_terms'], $data['category'], TRUE);
           }
           $this->getLogger('amazon_product_widget')->info('QueueWorker: Updated %number search results.', [
-            '%number' => count($outdated_search_terms),
+            '%number' => count($outdated_data),
           ]);
         }
         catch (AmazonServiceException $e) {
