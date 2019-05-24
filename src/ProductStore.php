@@ -24,6 +24,7 @@ class ProductStore extends DatabaseStorage {
    * Collection for product data.
    */
   const COLLECTION_PRODUCTS = 'products';
+  const COLLECTION_SEARCH_RESULTS = 'search_results';
 
   /**
    * Overrides Drupal\Core\KeyValueStore\StorageBase::__construct().

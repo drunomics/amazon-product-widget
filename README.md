@@ -91,11 +91,13 @@ for when the cronjob will try to update the data form amazon again.
 The next renewal can be overridden in the setting (in hours):
   
   `amazon_product_widget.products.renewal_time`
+  `amazon_product_widget.search_results.renewal_time`
   
 The number of items which will be renewed per cron run is by default 100, and
 can be set in this setting:
 
   `amazon_product_widget.products.renewal_limit`
+  `amazon_product_widget.search_results.renewal_limit`
 
 ### Permissions
 
