@@ -579,13 +579,11 @@ class ProductService {
     }
 
     $product_data = $this->getProductData($asins);
-    // Filter invalid products.
-    $product_data = array_filter($product_data);
 
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
     foreach ($product_data as $asin => $data) {
-      if (!$data['product_available']) {
+      if (empty($data['product_available'])) {
         $replace[] = $asin;
       }
     }
