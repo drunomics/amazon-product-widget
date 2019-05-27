@@ -2,6 +2,10 @@
 
 namespace Drupal\amazon_product_widget;
 
+use ApaiIO\ApaiIO;
+use ApaiIO\Configuration\GenericConfiguration;
+use ApaiIO\Operations\Search;
+use InvalidArgumentException;
 use Drupal\amazon\Amazon;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
@@ -17,6 +21,11 @@ use Drupal\Core\State\StateInterface;
  * Provides amazon product data.
  */
 class ProductService {
+
+  /**
+   * Search index default category.
+   */
+  const AMAZON_CATEGORY_DEFAULT = 'All';
 
   /**
    * The entity type manager.
@@ -35,9 +44,22 @@ class ProductService {
   /**
    * Product store.
    *
+   * Key value store with ASIN-number as keys and serialized product data as
+   * data.
+   *
    * @var \Drupal\amazon_product_widget\productStore
    */
   protected $productStore;
+
+  /**
+   * Search result store.
+   *
+   * Key value store with a hashed search term string as key and a list of
+   * ASINs which were returned from amazon search as data.
+   *
+   * @var \Drupal\amazon_product_widget\productStore
+   */
+  protected $searchResultStore;
 
   /**
    * State.
@@ -66,6 +88,13 @@ class ProductService {
    * @var \Drupal\amazon\Amazon
    */
   protected $amazonApi;
+
+  /**
+   * Amazon API.
+   *
+   * @var \ApaiIO\ApaiIO
+   */
+  protected $client;
 
   /**
    * Amazon associates Id.
@@ -106,6 +135,7 @@ class ProductService {
    */
   public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
+    $this->searchResultStore = $store_factory->get(ProductStore::COLLECTION_SEARCH_RESULTS);
     $this->state = $state;
     $this->lock = $lock;
     $this->queue = $queue;
@@ -135,6 +165,15 @@ class ProductService {
   }
 
   /**
+   * Gets the search result store.
+   *
+   * @return \Drupal\amazon_product_widget\productStore
+   */
+  public function getSearchResultStore() {
+    return $this->searchResultStore;
+  }
+
+  /**
    * Gets the amazon api.
    *
    * @return \Drupal\amazon\Amazon
@@ -153,6 +192,48 @@ class ProductService {
     }
 
     return $this->amazonApi;
+  }
+
+  /**
+   * Gets the api client.
+   *
+   * @return ApaiIO
+   *   The api client.
+   *
+   * @throws InvalidArgumentException
+   */
+  protected function getClient() {
+    if (!$this->client instanceof ApaiIO) {
+      if (empty($access_key)) {
+        $access_key = Amazon::getAccessKey();
+        if (!$access_key) {
+          throw new InvalidArgumentException('Configuration missing: Amazon access key.');
+        }
+      }
+      if (empty($access_secret)) {
+        $access_secret = Amazon::getAccessSecret();
+        if (!$access_secret) {
+          throw new InvalidArgumentException('Configuration missing: Amazon access secret.');
+        }
+      }
+      if (empty($locale)) {
+        $locale = Amazon::getLocale();
+        if (!$locale) {
+          throw new InvalidArgumentException('Configuration missing: Amazon locale.');
+        }
+      }
+
+      $conf = new GenericConfiguration();
+
+      $conf->setCountry($locale)
+        ->setAccessKey($access_key)
+        ->setSecretKey($access_secret)
+        ->setAssociateTag($this->associatesId);
+
+      $this->client = new ApaiIO($conf);
+    }
+
+    return $this->client;
   }
 
   /**
@@ -175,6 +256,7 @@ class ProductService {
    */
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
+    $asins = array_filter($asins);
     $product_data = [];
 
     if ($renew) {
@@ -194,6 +276,39 @@ class ProductService {
   }
 
   /**
+  * Gets top listed ASINs for a search term.
+  *
+  * Since this will use amazon requests which are limited, never use this
+  * method in a way where the search is provided by anonymous users input.
+  *
+  * @param string $search_terms
+  *   A search string like you would input in the Amazon search bar.
+  * @param string $category
+  *   Amazon Search index, defaults to `All`.
+  * @param bool $renew
+  *   Clear cache and fetch product data from amazon.
+  *
+  * @return string[]
+  *   An array of ASIN-numbers which are the top result for that search, with
+  *   the first item in the array being the top result.
+  *
+  * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+  * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
+  */
+  public function getSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT, $renew = FALSE) {
+    if (empty($search_terms)) {
+      return [];
+    }
+    $key = ProductStore::createSearchResultKey($search_terms, $category);
+    $data = $this->searchResultStore->get($key);
+    if (empty($data['result']) || $renew) {
+      $result = $this->fetchAmazonSearchResults($search_terms, $category);
+      return $result;
+    }
+    return $data['result'];
+  }
+
+  /**
    * Queue fetching of stale product data in the store.
    *
    * @param string[] $asins
@@ -203,11 +318,34 @@ class ProductService {
    * @throws \Exception
    */
   public function queueProductRenewal(array $asins = []) {
+    $asins = array_filter($asins);
     foreach ($asins as $asin) {
       $this->productStore->setIfNotExists($asin, FALSE, 0);
     }
     if ($this->productStore->hasStaleData()) {
       $this->queue->createItem(['collection' => ProductStore::COLLECTION_PRODUCTS]);
+    }
+  }
+
+  /**
+   * Queue fetching of stale search results in the store.
+   *
+   * @param string $search_terms
+   *   (optional) Add a search string like you would input in the Amazon search
+   *   bar to fetch results for this string as well.
+   * @param string $category
+   *   Amazon Search index, defaults to `All`.
+   *
+   * @throws \Exception
+   */
+  public function queueSearchResults($search_terms = '', $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
+    if (strlen($search_terms)) {
+      $key = ProductStore::createSearchResultKey($search_terms, $category);
+      $default = ProductStore::createSearchResultData($search_terms, $category);
+      $this->searchResultStore->setIfNotExists($key, $default, 0);
+    }
+    if ($this->searchResultStore->hasStaleData()) {
+      $this->queue->createItem(['collection' => ProductStore::COLLECTION_SEARCH_RESULTS]);
     }
   }
 
@@ -227,8 +365,10 @@ class ProductService {
   protected function fetchAmazonProducts(array $asins) {
     $product_data = [];
     $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
+    // In case other requests preceded this one.
+    usleep(round($requests_per_second_limit * 1000 * 1000));
     $expected_lock_time = $requests_per_second_limit * count($asins) / 10;
-    if (!$this->lock->acquire(__METHOD__, min(30, $expected_lock_time + 5))) {
+    if (!$this->lock->acquire(__CLASS__, min(30, $expected_lock_time + 5))) {
       throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
     }
 
@@ -270,7 +410,7 @@ class ProductService {
           'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
           'product_group' => (string) $item->ItemAttributes->ProductGroup,
           'product_available' => $product_available,
-          'is_eligible_for_prime' => $is_eligible_for_prime
+          'is_eligible_for_prime' => $is_eligible_for_prime,
         ];
       }
 
@@ -293,8 +433,66 @@ class ProductService {
       }
     }
 
-    $this->lock->release(__METHOD__);
+    $this->lock->release(__CLASS__);
     return $product_data;
+  }
+
+  /**
+   * Fetch search results directly from amazon.
+   *
+   * @param string $search_terms
+   *   A search string like you would input in the Amazon search bar.
+   * @param string $category
+   *   Amazon Search index, defaults to `All`.
+   *
+   * @return string[]
+   *   An array of ASIN-numbers which are the top result for that search.
+   *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
+   */
+  public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
+    $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
+    // In case other requests preceded this one.
+    usleep(round($requests_per_second_limit * 1000 * 1000));
+    if (!$this->lock->acquire(__CLASS__)) {
+      throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
+    }
+
+    if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
+      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+    }
+
+    $this->increaseTodaysRequestCount();
+
+    $client = $this->getClient();
+
+    $search = new Search();
+    $search
+      ->setKeywords($search_terms)
+      ->setCategory($category)
+      ->setResponseGroup(['Small']);
+
+    $response = $client->runOperation($search);
+    $simple_xml = simplexml_load_string($response);
+    $asins = [];
+    if (!empty($simple_xml->Items->Item)) {
+      foreach ($simple_xml->Items->Item as $item) {
+        $asin = (string) $item->ASIN;
+        if (amazon_product_widget_is_valid_asin($asin)) {
+          $asins[] = $asin;
+        }
+      }
+    }
+
+    // Make sure to cache the response even if there are no results, that way
+    // we don't query the api every time.
+    $key = ProductStore::createSearchResultKey($search_terms, $category);
+    $data = ProductStore::createSearchResultData($search_terms, $category, $asins);
+    $this->searchResultStore->set($key, $data);
+
+    $this->lock->release(__CLASS__);
+    return $asins;
   }
 
   /**
@@ -361,6 +559,7 @@ class ProductService {
   public function buildProducts($entity_type, $entity_id, $fieldname) {
     $content = NULL;
     $title = '';
+    $search_terms = '';
     $asins = [];
     $cache_dependency = new CacheableMetadata();
 
@@ -374,6 +573,7 @@ class ProductService {
           $cache_dependency = CacheableMetadata::createFromObject($entity)->merge($cache_dependency);
           $asins = $field->getAsins();
           $title = $field->getTitle();
+          $search_terms = $field->getSearchTerms();
         }
       }
     }
@@ -381,6 +581,35 @@ class ProductService {
     $product_data = $this->getProductData($asins);
     // Filter invalid products.
     $product_data = array_filter($product_data);
+
+    // Replace unavailable products with ones from the search term fallback.
+    $replace = [];
+    foreach ($product_data as $asin => $data) {
+      if (!$data['product_available']) {
+        $replace[] = $asin;
+      }
+    }
+
+    if (!empty($replace)) {
+      $fallback_asins = $this->getSearchResults($search_terms, ProductService::AMAZON_CATEGORY_DEFAULT);
+      $fallback_data = $this->getProductData($fallback_asins);
+      // Replace outdated products and keep the result order: $fallback_asins
+      // contains ordered results (top first).
+      $product_data = array_diff_key($product_data, array_flip($replace));
+      foreach ($fallback_asins as $asin) {
+        if (
+          empty($product_data[$asin])
+          && !empty($fallback_data[$asin])
+          && $fallback_data[$asin]['product_available']
+        ) {
+          $product_data[$asin] = $fallback_data[$asin];
+          array_pop($replace);
+          if (empty($replace)) {
+            break;
+          }
+        }
+      }
+    }
 
     $product_build = [];
     foreach ($product_data as $data) {

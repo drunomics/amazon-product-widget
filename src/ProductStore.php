@@ -24,6 +24,7 @@ class ProductStore extends DatabaseStorage {
    * Collection for product data.
    */
   const COLLECTION_PRODUCTS = 'products';
+  const COLLECTION_SEARCH_RESULTS = 'search_results';
 
   /**
    * Overrides Drupal\Core\KeyValueStore\StorageBase::__construct().
@@ -154,6 +155,51 @@ class ProductStore extends DatabaseStorage {
   public function hasStaleData() {
     $result = $this->getOutdatedKeys(1);
     return (bool) count($result);
+  }
+
+  /**
+   * Gets a hash for the search result store.
+   *
+   * Used for setting the search store key.
+   *
+   * @param string $search_terms
+   *   Add a search string like you would input in the Amazon search
+   *   bar to fetch results for this string as well.
+   * @param string $category
+   *   Amazon Search index.
+   *
+   * @return string
+   */
+  public static function createSearchResultKey($search_terms, $category) {
+    $elements = [
+      $category,
+      $search_terms,
+    ];
+    return md5(serialize($elements));
+  }
+
+  /**
+   * Gets data container for the search store.
+   *
+   * Used for setting the search store value.
+   *
+   * @param string $search_terms
+   *   Add a search string like you would input in the Amazon search
+   *   bar to fetch results for this string as well.
+   * @param string $category
+   *   Amazon Search index.
+   * @param string[] $asins
+   *   (optional) Provide ASINs which are not in the store yet, so that they
+   *   get fetched too.
+   *
+   * @return array
+   */
+  public static function createSearchResultData($search_terms, $category, $asins = []) {
+    return [
+      'search_terms' => $search_terms,
+      'category' => $category,
+      'result' => $asins,
+    ];
   }
 
 }

@@ -191,6 +191,11 @@ class AmazonProductWidget extends WidgetBase implements ContainerFactoryPluginIn
         // Convert to internal format (comma separated list of asins).
         $value['asins'] = implode(",", array_filter($value['asins']));
       }
+
+      if (!empty($value['search_terms'])) {
+        // Queue fetching of search results.
+        $this->productService->queueSearchResults($value['search_terms']);
+      }
     }
     return $values;
   }
