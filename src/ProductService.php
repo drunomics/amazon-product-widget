@@ -471,7 +471,7 @@ class ProductService {
     $search
       ->setKeywords($search_terms)
       ->setCategory($category)
-      ->setResponseGroup(array('Small'));
+      ->setResponseGroup(['Small']);
 
     $response = $client->runOperation($search);
     $simple_xml = simplexml_load_string($response);
@@ -601,7 +601,6 @@ class ProductService {
           empty($product_data[$asin])
           && !empty($fallback_data[$asin])
           && $fallback_data[$asin]['product_available']
-          && !empty($replace)
         ) {
           $product_data[$asin] = $fallback_data[$asin];
           array_pop($replace);
