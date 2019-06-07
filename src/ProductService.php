@@ -650,8 +650,8 @@ class ProductService {
         '#call_to_action_text' => $this->settings->get('call_to_action_text'),
         '#currency_symbol' => $data['currency'],
         '#manufacturer' => $data['manufacturer'],
-        '#price' => $data['price'] ? number_format($data['price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
-        '#suggested_price' => $data['suggested_price'] ? number_format($data['suggested_price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
+        '#price' => !empty($data['price']) ? number_format($data['price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
+        '#suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
       ];
     }
