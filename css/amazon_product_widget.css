@@ -76,6 +76,13 @@
   height: 1.2em;
 }
 
+.amazon-product__suggested-price {
+  text-decoration: line-through;
+  font-size: 0.8em;
+  color: #555;
+  height: 1.2em;
+}
+
 .amazon-product__link {
   display: flex;
 }

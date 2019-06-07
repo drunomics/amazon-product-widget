@@ -8,6 +8,11 @@
       <div class="amazon-product__name">
           {{ title }}
       </div>
+      {% if not suggested_price is empty %}
+      <div class="amazon-product__suggested-price">
+        {{ currency_symbol }} {{ suggested_price }}
+      </div>
+      {% endif %}
       <div class="amazon-product__price">
           {{ currency_symbol }} {{ price }}
       </div>

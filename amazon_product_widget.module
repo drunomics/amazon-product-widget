@@ -28,6 +28,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
     'amazon_product_widget_product' => [
       'variables' => [
         'img_src' => '',
+        'img_src_large' => '',
         'name' => '',
         'title' => '',
         'url' => '',
@@ -35,6 +36,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'currency_symbol' => '',
         'manufacturer' => '',
         'price' => '',
+        'suggested_price' => '',
         'product_available' => TRUE,
         'is_eligible_for_prime' => FALSE,
       ],

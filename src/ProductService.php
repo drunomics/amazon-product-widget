@@ -388,12 +388,35 @@ class ProductService {
       foreach ($result as $item) {
         $product_available = FALSE;
         $price = NULL;
+        $suggested_price = NULL;
         $currency = NULL;
 
         if (!empty($item->Offers->Offer->OfferListing->Price)) {
           $product_available = TRUE;
-          $price = (string) $item->Offers->Offer->OfferListing->Price->Amount;
+          // Price in cents.
+          $price = (int) $item->Offers->Offer->OfferListing->Price->Amount;
           $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
+          $suggested_price = $price;
+          if (!empty($item->Offers->Offer->OfferListing->AmountSaved->Amount)) {
+            $saved_amount = (int) $item->Offers->Offer->OfferListing->AmountSaved->Amount;
+            $suggested_price = $price + $saved_amount;
+          }
+        }
+
+        $medium_image = '';
+        if (!empty($item->MediumImage->URL)) {
+          $medium_image = (string) $item->MediumImage->URL;
+        }
+        elseif (!empty($item->ImageSets->ImageSet[0]->MediumImage->URL)) {
+          $medium_image = (string) $item->ImageSets->ImageSet[0]->MediumImage->URL;
+        }
+
+        $large_image = '';
+        if (!empty($item->LargeImage->URL)) {
+          $large_image = (string) $item->LargeImage->URL;
+        }
+        elseif (!empty($item->ImageSets->ImageSet[0]->LargeImage->URL)) {
+          $large_image = (string) $item->ImageSets->ImageSet[0]->LargeImage->URL;
         }
 
         // SimpleXMLElement needs to be casted to string first.
@@ -404,8 +427,10 @@ class ProductService {
           'ASIN' => (string) $item->ASIN,
           'title' => (string) $item->ItemAttributes->Title,
           'url' => (string) $item->DetailPageURL,
-          'img_src' => (string) $item->MediumImage->URL,
-          'price' => $price ? number_format((float) $price / 100, 2, ',', '') : NULL,
+          'img_src' => $medium_image,
+          'img_src_large' => $large_image,
+          'price' => $price,
+          'suggested_price' => $suggested_price,
           'currency' => $currency,
           'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
           'product_group' => (string) $item->ItemAttributes->ProductGroup,
@@ -609,19 +634,24 @@ class ProductService {
       }
     }
 
+    $decimal_separator = $this->settings->get('price_decimal_separator');
+    $thousand_separator = $this->settings->get('price_thousand_separator');
+
     $product_build = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
       $product_build[] = [
         '#theme' => 'amazon_product_widget_product',
         '#img_src' => $data['img_src'],
+        '#img_src_large' => $data['img_src_large'],
         '#name' => $data['title'],
         '#title' => $data['title'],
         '#url' => $data['url'],
         '#call_to_action_text' => $this->settings->get('call_to_action_text'),
         '#currency_symbol' => $data['currency'],
         '#manufacturer' => $data['manufacturer'],
-        '#price' => $data['price'],
+        '#price' => $data['price'] ? number_format($data['price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
+        '#suggested_price' => $data['suggested_price'] ? number_format($data['suggested_price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
       ];
     }

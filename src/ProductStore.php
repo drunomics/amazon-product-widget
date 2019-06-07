@@ -158,6 +158,15 @@ class ProductStore extends DatabaseStorage {
   }
 
   /**
+   * Sets the renewal time to zero for all entries.
+   *
+   * All items will then be fetched fresh on the next cron run.
+   */
+  public function resetAll() {
+    $this->connection->query('UPDATE {' . $this->connection->escapeTable($this->table) . '} SET renewal = 0 WHERE collection = :collection', [':collection' => $this->collection]);
+  }
+
+  /**
    * Gets a hash for the search result store.
    *
    * Used for setting the search store key.
