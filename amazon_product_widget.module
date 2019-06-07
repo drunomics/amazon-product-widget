@@ -27,8 +27,16 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
     ],
     'amazon_product_widget_product' => [
       'variables' => [
-        'img_src' => '',
-        'img_src_large' => '',
+        'medium_image' => [
+          'URL' => '',
+          'Height' => NULL,
+          'Width' => NULL,
+        ],
+        'large_image' => [
+          'URL' => '',
+          'Height' => NULL,
+          'Width' => NULL,
+        ],
         'name' => '',
         'title' => '',
         'url' => '',

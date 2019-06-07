@@ -403,20 +403,20 @@ class ProductService {
           }
         }
 
-        $medium_image = '';
-        if (!empty($item->MediumImage->URL)) {
-          $medium_image = (string) $item->MediumImage->URL;
+        $medium_image = [];
+        if (!empty($item->MediumImage)) {
+          $medium_image = (array) $item->MediumImage;
         }
-        elseif (!empty($item->ImageSets->ImageSet[0]->MediumImage->URL)) {
-          $medium_image = (string) $item->ImageSets->ImageSet[0]->MediumImage->URL;
+        elseif (!empty($item->ImageSets->ImageSet[0]->MediumImage)) {
+          $medium_image = (array) $item->ImageSets->ImageSet[0]->MediumImage;
         }
 
-        $large_image = '';
-        if (!empty($item->LargeImage->URL)) {
-          $large_image = (string) $item->LargeImage->URL;
+        $large_image = [];
+        if (!empty($item->LargeImage)) {
+          $large_image = (array) $item->LargeImage;
         }
-        elseif (!empty($item->ImageSets->ImageSet[0]->LargeImage->URL)) {
-          $large_image = (string) $item->ImageSets->ImageSet[0]->LargeImage->URL;
+        elseif (!empty($item->ImageSets->ImageSet[0]->LargeImage)) {
+          $large_image = (array) $item->ImageSets->ImageSet[0]->LargeImage;
         }
 
         // SimpleXMLElement needs to be casted to string first.
@@ -427,8 +427,8 @@ class ProductService {
           'ASIN' => (string) $item->ASIN,
           'title' => (string) $item->ItemAttributes->Title,
           'url' => (string) $item->DetailPageURL,
-          'img_src' => $medium_image,
-          'img_src_large' => $large_image,
+          'medium_image' => $medium_image,
+          'large_image' => $large_image,
           'price' => $price,
           'suggested_price' => $suggested_price,
           'currency' => $currency,
@@ -642,8 +642,8 @@ class ProductService {
       $data = (array) $data;
       $product_build[] = [
         '#theme' => 'amazon_product_widget_product',
-        '#img_src' => $data['img_src'],
-        '#img_src_large' => $data['img_src_large'],
+        '#medium_image' => $data['medium_image'],
+        '#large_image' => $data['large_image'],
         '#name' => $data['title'],
         '#title' => $data['title'],
         '#url' => $data['url'],
