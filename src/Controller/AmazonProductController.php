@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Controller;
 
+use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\amazon_product_widget\ProductServiceTrait;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
@@ -62,16 +63,11 @@ class AmazonProductController extends ControllerBase {
     $entity_type = $request->query->get('entity_type');
     $fieldname = $request->query->get('field');
 
-    try {
-      $build = $this->getProductService()->buildProducts($entity_type, $entity_id, $fieldname);
-    }
-    catch (\Exception $e) {
-      watchdog_exception('amazon_product_widget', $e);
-      // Continue here and cache the empty response.
-    }
-
+    $build = $this->getProductService()->buildProducts($entity_type, $entity_id, $fieldname);
     $cache_dependency = CacheableMetadata::createFromRenderArray($build);
+
     $content = $this->renderer->renderRoot($build);
+
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cache_dependency);
     $response->setData(['count' => count($build['#products']), 'content' => $content]);

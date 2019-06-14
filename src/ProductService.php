@@ -603,7 +603,13 @@ class ProductService {
       }
     }
 
-    $product_data = $this->getProductData($asins);
+    try {
+      $product_data = $this->getProductData($asins);
+    }
+    catch (\Exception $e) {
+      $product_data = [];
+      watchdog_exception('amazon_product_widget', $e);
+    }
 
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
