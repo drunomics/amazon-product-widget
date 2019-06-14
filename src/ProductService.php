@@ -578,8 +578,8 @@ class ProductService {
    * @return mixed[]
    *   Build array.
    *
-   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
-   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function buildProducts($entity_type, $entity_id, $fieldname) {
     $content = NULL;
@@ -620,8 +620,16 @@ class ProductService {
     }
 
     if (!empty($replace)) {
-      $fallback_asins = $this->getSearchResults($search_terms, ProductService::AMAZON_CATEGORY_DEFAULT);
-      $fallback_data = $this->getProductData($fallback_asins);
+      try {
+        $fallback_asins = $this->getSearchResults($search_terms, ProductService::AMAZON_CATEGORY_DEFAULT);
+        $fallback_data = $this->getProductData($fallback_asins);
+      }
+      catch (\Exception $e) {
+        $fallback_asins = [];
+        $fallback_data = [];
+        watchdog_exception('amazon_product_widget', $e);
+      }
+
       // Replace outdated products and keep the result order: $fallback_asins
       // contains ordered results (top first).
       $product_data = array_diff_key($product_data, array_flip($replace));
