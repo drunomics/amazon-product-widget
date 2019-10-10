@@ -4,4 +4,4 @@ description: Customization to Amazon Product widgets.
 package: Amazon
 core: 8.x
 dependencies:
-  - drupal:amazon
+  - drupal:amazon_paapi

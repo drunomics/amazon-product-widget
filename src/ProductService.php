@@ -2,13 +2,13 @@
 
 namespace Drupal\amazon_product_widget;
 
-use ApaiIO\ApaiIO;
-use ApaiIO\Configuration\GenericConfiguration;
-use ApaiIO\Operations\Search;
-use InvalidArgumentException;
-use Drupal\amazon\Amazon;
+use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\GetItemsRequest;
+use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\GetItemsResource;
+use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\PartnerType;
+use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\SearchItemsRequest;
+use Drupal\amazon_paapi\AmazonPaapi;
+use Drupal\amazon_paapi\AmazonPaapiTrait;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
-use Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -21,6 +21,8 @@ use Drupal\Core\State\StateInterface;
  * Provides amazon product data.
  */
 class ProductService {
+
+  use AmazonPaapiTrait;
 
   /**
    * Search index default category.
@@ -83,27 +85,6 @@ class ProductService {
   protected $queue;
 
   /**
-   * Amazon API.
-   *
-   * @var \Drupal\amazon\Amazon
-   */
-  protected $amazonApi;
-
-  /**
-   * Amazon API.
-   *
-   * @var \ApaiIO\ApaiIO
-   */
-  protected $client;
-
-  /**
-   * Amazon associates Id.
-   *
-   * @var string
-   */
-  protected $associatesId;
-
-  /**
    * Maximum allowed requests per day (Amazon throttling).
    *
    * @var int
@@ -144,7 +125,6 @@ class ProductService {
     $this->settings = $config->get('amazon_product_widget.settings');
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
-    $this->associatesId = $config->get('amazon.settings')->get('associates_id');
 
     if (empty($this->maxRequestPerSecond)) {
       $this->maxRequestPerSecond = 1;
@@ -171,69 +151,6 @@ class ProductService {
    */
   public function getSearchResultStore() {
     return $this->searchResultStore;
-  }
-
-  /**
-   * Gets the amazon api.
-   *
-   * @return \Drupal\amazon\Amazon
-   *
-   * @throws AmazonServiceUnavailableException
-   */
-  protected function getAmazonApi() {
-    if (!$this->amazonApi instanceof Amazon) {
-      try {
-        $this->amazonApi = new Amazon($this->associatesId);
-      }
-      catch (\Exception $e) {
-        watchdog_exception('amazon_product_widget', $e);
-        throw new AmazonServiceUnavailableException('Error on initializing Amazon API, check log for more information.');
-      }
-    }
-
-    return $this->amazonApi;
-  }
-
-  /**
-   * Gets the api client.
-   *
-   * @return ApaiIO
-   *   The api client.
-   *
-   * @throws InvalidArgumentException
-   */
-  protected function getClient() {
-    if (!$this->client instanceof ApaiIO) {
-      if (empty($access_key)) {
-        $access_key = Amazon::getAccessKey();
-        if (!$access_key) {
-          throw new InvalidArgumentException('Configuration missing: Amazon access key.');
-        }
-      }
-      if (empty($access_secret)) {
-        $access_secret = Amazon::getAccessSecret();
-        if (!$access_secret) {
-          throw new InvalidArgumentException('Configuration missing: Amazon access secret.');
-        }
-      }
-      if (empty($locale)) {
-        $locale = Amazon::getLocale();
-        if (!$locale) {
-          throw new InvalidArgumentException('Configuration missing: Amazon locale.');
-        }
-      }
-
-      $conf = new GenericConfiguration();
-
-      $conf->setCountry($locale)
-        ->setAccessKey($access_key)
-        ->setSecretKey($access_secret)
-        ->setAssociateTag($this->associatesId);
-
-      $this->client = new ApaiIO($conf);
-    }
-
-    return $this->client;
   }
 
   /**
@@ -383,60 +300,98 @@ class ProductService {
       }
 
       $this->increaseTodaysRequestCount();
-      $result = $this->getAmazonApi()->lookup($asins_chunk, ['Offers']);
 
-      foreach ($result as $item) {
-        $product_available = FALSE;
-        $price = NULL;
-        $suggested_price = NULL;
-        $currency = NULL;
+      $resources = [
+        GetItemsResource::IMAGESPRIMARYMEDIUM,
+        GetItemsResource::IMAGESPRIMARYLARGE,
+        GetItemsResource::ITEM_INFOBY_LINE_INFO,
+        GetItemsResource::ITEM_INFOTITLE,
+        GetItemsResource::OFFERSLISTINGSPRICE,
+        GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
+      ];
 
-        if (!empty($item->Offers->Offer->OfferListing->Price)) {
-          $product_available = TRUE;
-          // Price in cents.
-          $price = (int) $item->Offers->Offer->OfferListing->Price->Amount;
-          $currency = (string) $item->Offers->Offer->OfferListing->Price->CurrencyCode;
-          $suggested_price = $price;
-          if (!empty($item->Offers->Offer->OfferListing->AmountSaved->Amount)) {
-            $saved_amount = (int) $item->Offers->Offer->OfferListing->AmountSaved->Amount;
-            $suggested_price = $price + $saved_amount;
+      $partner_tag = AmazonPaapi::getPartnerTag();
+      $request = new GetItemsRequest();
+      $request->setItemIds($asins_chunk);
+      $request->setPartnerTag($partner_tag);
+      $request->setPartnerType(PartnerType::ASSOCIATES);
+      $request->setResources($resources);
+
+      try {
+        $response = $this->getAmazonPaapi()->getApi()->getItems($request);
+        if ($response->getItemsResult() && $response->getItemsResult()->getItems()) {
+          foreach ($response->getItemsResult()->getItems() as $item) {
+            $item_data = [
+              'ASIN' => $item->getASIN(),
+              'title' => NULL,
+              'url' => NULL,
+              'medium_image' => [],
+              'large_image' => [],
+              'price' => NULL,
+              'suggested_price' => NULL,
+              'currency' => NULL,
+              'manufacturer' => NULL,
+              'product_available' => FALSE,
+              'is_eligible_for_prime' => FALSE,
+            ];
+
+            if ($item->getDetailPageURL()) {
+              $item_data['url'] = $item->getDetailPageURL();
+            }
+
+            if ($item_info = $item->getItemInfo()) {
+              if ($item_info->getTitle()) {
+                $item_data['title'] = $item_info->getTitle()->getDisplayValue();
+              }
+              if ($item_info->getByLineInfo() && $item_info->getByLineInfo()->getManufacturer()) {
+                $item_data['manufacturer'] = $item_info->getByLineInfo()->getManufacturer()->getDisplayValue();
+              }
+            }
+
+            if (
+              $item->getOffers()
+              && $item->getOffers()->getListings()
+              && $item->getOffers()->getListings()[0]
+            ) {
+
+              $offer = $item->getOffers()->getListings()[0];
+              if ($price = $offer->getPrice()) {
+                $item_data['price'] = $price->getAmount();
+                $item_data['currency'] = $price->getCurrency();
+                $item_data['product_available'] = TRUE;
+
+                if ($savings = $price->getSavings()) {
+                  $item_data['suggested_price'] = $item_data['price'] + $savings->getAmount();
+                }
+              }
+
+              if ($offer->getDeliveryInfo() && $offer->getDeliveryInfo()->getIsPrimeEligible()) {
+                $item_data['is_eligible_for_prime'] = TRUE;
+              }
+            }
+
+            if ($item->getImages() && $primary_images = $item->getImages()->getPrimary()) {
+              if ($primary_images->getMedium()) {
+                $item_data['medium_image'] = [
+                  'URL' => $primary_images->getMedium()->getURL(),
+                  'Width' => $primary_images->getMedium()->getWidth(),
+                  'Height' => $primary_images->getMedium()->getHeight(),
+                ];
+              }
+              if ($primary_images->getLarge()) {
+                $item_data['large_image'] = [
+                  'URL' => $primary_images->getLarge()->getURL(),
+                  'Width' => $primary_images->getLarge()->getWidth(),
+                  'Height' => $primary_images->getLarge()->getHeight(),
+                ];
+              }
+            }
+            $amazon_data[$item->getASIN()] = $item_data;
           }
         }
-
-        $medium_image = [];
-        if (!empty($item->MediumImage)) {
-          $medium_image = (array) $item->MediumImage;
-        }
-        elseif (!empty($item->ImageSets->ImageSet[0]->MediumImage)) {
-          $medium_image = (array) $item->ImageSets->ImageSet[0]->MediumImage;
-        }
-
-        $large_image = [];
-        if (!empty($item->LargeImage)) {
-          $large_image = (array) $item->LargeImage;
-        }
-        elseif (!empty($item->ImageSets->ImageSet[0]->LargeImage)) {
-          $large_image = (array) $item->ImageSets->ImageSet[0]->LargeImage;
-        }
-
-        // SimpleXMLElement needs to be casted to string first.
-        $is_eligible_for_prime = isset($item->Offers->Offer->OfferListing->IsEligibleForPrime) ?
-          (bool)(string) $item->Offers->Offer->OfferListing->IsEligibleForPrime : FALSE;
-
-        $amazon_data[(string) $item->ASIN] = [
-          'ASIN' => (string) $item->ASIN,
-          'title' => (string) $item->ItemAttributes->Title,
-          'url' => (string) $item->DetailPageURL,
-          'medium_image' => $medium_image,
-          'large_image' => $large_image,
-          'price' => $price,
-          'suggested_price' => $suggested_price,
-          'currency' => $currency,
-          'manufacturer' => (string) $item->ItemAttributes->Manufacturer,
-          'product_group' => (string) $item->ItemAttributes->ProductGroup,
-          'product_available' => $product_available,
-          'is_eligible_for_prime' => $is_eligible_for_prime,
-        ];
+      }
+      catch (\Exception $e) {
+        $this->getAmazonPaapi()->logException($e);
       }
 
       // Also cache asins for which we couldn't get any data or else we would
@@ -490,24 +445,30 @@ class ProductService {
 
     $this->increaseTodaysRequestCount();
 
-    $client = $this->getClient();
+    $resources = [];
+    $partner_tag = AmazonPaapi::getPartnerTag();
 
-    $search = new Search();
-    $search
-      ->setKeywords($search_terms)
-      ->setCategory($category)
-      ->setResponseGroup(['Small']);
+    $request = new SearchItemsRequest();
+    $request->setSearchIndex($category);
+    $request->setKeywords($search_terms);
+    $request->setItemCount(10);
+    $request->setPartnerTag($partner_tag);
+    $request->setPartnerType(PartnerType::ASSOCIATES);
+    $request->setResources($resources);
 
-    $response = $client->runOperation($search);
-    $simple_xml = simplexml_load_string($response);
     $asins = [];
-    if (!empty($simple_xml->Items->Item)) {
-      foreach ($simple_xml->Items->Item as $item) {
-        $asin = (string) $item->ASIN;
-        if (amazon_product_widget_is_valid_asin($asin)) {
+
+    try {
+      $response = $this->getAmazonPaapi()->getApi()->searchItems($request);
+      if ($response->getSearchResult() && $response->getSearchResult()->getItems()) {
+        foreach ($response->getSearchResult()->getItems() as $item) {
+          $asin = $item->getASIN();
           $asins[] = $asin;
         }
       }
+    }
+    catch (\Exception $e) {
+      $this->getAmazonPaapi()->logException($e);
     }
 
     // Make sure to cache the response even if there are no results, that way
@@ -651,21 +612,27 @@ class ProductService {
     $decimal_separator = $this->settings->get('price_decimal_separator');
     $thousand_separator = $this->settings->get('price_thousand_separator');
 
+    $image_defaults = [
+      'URL' => NULL,
+      'Height' => NULL,
+      'Width' => NULL,
+    ];
+
     $product_build = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
       $product_build[] = [
         '#theme' => 'amazon_product_widget_product',
-        '#medium_image' => $data['medium_image'],
-        '#large_image' => $data['large_image'],
+        '#medium_image' => $data['medium_image'] + $image_defaults,
+        '#large_image' => $data['large_image'] + $image_defaults,
         '#name' => $data['title'],
         '#title' => $data['title'],
         '#url' => $data['url'],
         '#call_to_action_text' => $this->settings->get('call_to_action_text'),
         '#currency_symbol' => $data['currency'],
         '#manufacturer' => $data['manufacturer'],
-        '#price' => !empty($data['price']) ? number_format($data['price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
-        '#suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'] / 100, 2, $decimal_separator, $thousand_separator) : NULL,
+        '#price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
+        '#suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
       ];
     }

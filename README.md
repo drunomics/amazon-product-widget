@@ -37,33 +37,17 @@ strategy.
 You will need an Amazon Associates account and register it for the Product 
 Advertising API to get the credentials needed.
 
-The module requires the drupal\amazon module with the following patches:
-
-```json
-"drupal/amazon": {
-    "Issue #3005862 Allow to set locale when using API." : "https://www.drupal.org/files/issues/2018-10-16/3005862-4-allow-to-set-locale.patch",
-    "Issue #3006056 Respect extra response groups" : "https://www.drupal.org/files/issues/2018-10-11/3006056-2-include-extra-response-groups.patch",
-    "Issue #3029351 Enable api key input fields in administration form." : "https://www.drupal.org/files/issues/2019-02-11/3029351-2-admin-form-enable-api-key-input-fields.patch"
-},
-```
-
 ## Installation
 
- * `composer require drupal/amazon:2.x-dev`
- * Either add patches manually or set `enable-patching` to true in the projects 
-   root composer.json (see [Requirements](#requirements)).
+ * `composer require drunomics/amazon_product_widget`
  * Install this module as you would a normal Drupal module
 
 ## Configuration
 
 ### Amazon settings configuration
 
-Set following `amazon.settings` configuration:
-
-  * `access_key` - Amazon API access key
-  * `access_secret` - Amazon API secret
-  * `associates_id` - Amazon API associates id
-  * `locale` - Amazon page for your country (eg: `com` for USA, `de` for germany)
+Enable & configure the amazon_paapi module, which was install with composer,
+see README of the module.
  
 ### Amazon product widget configuration 
 
