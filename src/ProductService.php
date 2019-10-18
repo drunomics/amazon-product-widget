@@ -185,7 +185,7 @@ class ProductService {
     }
 
     if (!empty($fetch_asins)) {
-      $product_data += $this->fetchAndCacheAmazonProducts($fetch_asins);
+      $product_data += $this->fetchAmazonProducts($fetch_asins);
     }
 
     return $product_data;
@@ -276,7 +276,7 @@ class ProductService {
    *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
-  protected function fetchAndCacheAmazonProducts(array $asins) {
+  protected function fetchAmazonProducts(array $asins) {
     $asins = array_unique($asins);
     $product_data = [];
 
@@ -357,12 +357,14 @@ class ProductService {
       throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
     }
 
-    // In case other requests preceded this one, wait at the start.
-    $this->waitRequestsPerSecondLimit();
-
     $amazon_data = [];
     foreach ($asins as $asin) {
       $amazon_data[$asin] = FALSE;
+    }
+
+    $valid_asins = array_filter($asins, 'amazon_product_widget_is_valid_asin');
+    if (empty($valid_asins)) {
+      return $amazon_data;
     }
 
     $resources = [
@@ -374,8 +376,6 @@ class ProductService {
       GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
     ];
 
-    $valid_asins = array_filter($asins, 'amazon_product_widget_is_valid_asin');
-
     $partner_tag = AmazonPaapi::getPartnerTag();
     $request = new GetItemsRequest();
     $request->setItemIds($valid_asins);
@@ -383,7 +383,10 @@ class ProductService {
     $request->setPartnerType(PartnerType::ASSOCIATES);
     $request->setResources($resources);
 
+    // In case other requests preceded this one, wait at the start.
+    $this->waitRequestsPerSecondLimit();
     $this->increaseTodaysRequestCount();
+
     $response = $this->getAmazonPaapi()->getApi()->getItems($request);
 
     if ($response->getItemsResult() && $response->getItemsResult()->getItems()) {
