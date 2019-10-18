@@ -169,7 +169,6 @@ class ProductService {
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
-   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
@@ -186,32 +185,31 @@ class ProductService {
     }
 
     if (!empty($fetch_asins)) {
-      $product_data += $this->fetchAmazonProducts($fetch_asins);
+      $product_data += $this->fetchAndCacheAmazonProducts($fetch_asins);
     }
 
     return $product_data;
   }
 
   /**
-  * Gets top listed ASINs for a search term.
-  *
-  * Since this will use amazon requests which are limited, never use this
-  * method in a way where the search is provided by anonymous users input.
-  *
-  * @param string $search_terms
-  *   A search string like you would input in the Amazon search bar.
-  * @param string $category
-  *   Amazon Search index, defaults to `All`.
-  * @param bool $renew
-  *   Clear cache and fetch product data from amazon.
-  *
-  * @return string[]
-  *   An array of ASIN-numbers which are the top result for that search, with
-  *   the first item in the array being the top result.
-  *
-  * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
-  * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
-  */
+   * Gets top listed ASINs for a search term.
+   *
+   * Since this will use amazon requests which are limited, never use this
+   * method in a way where the search is provided by anonymous users input.
+   *
+   * @param string $search_terms
+   *   A search string like you would input in the Amazon search bar.
+   * @param string $category
+   *   Amazon Search index, defaults to `All`.
+   * @param bool $renew
+   *   Clear cache and fetch product data from amazon.
+   *
+   * @return string[]
+   *   An array of ASIN-numbers which are the top result for that search, with
+   *   the first item in the array being the top result.
+   *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   */
   public function getSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT, $renew = FALSE) {
     if (empty($search_terms)) {
       return [];
@@ -267,7 +265,7 @@ class ProductService {
   }
 
   /**
-   * Fetch products directly from amazon.
+   * Fetch & cache amazon product data.
    *
    * @param string[] $asins
    *   Product ASINs.
@@ -277,13 +275,12 @@ class ProductService {
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
-   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
-  protected function fetchAmazonProducts(array $asins) {
+  protected function fetchAndCacheAmazonProducts(array $asins) {
+    $asins = array_unique($asins);
     $product_data = [];
+
     $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
-    // In case other requests preceded this one.
-    usleep(round($requests_per_second_limit * 1000 * 1000));
     $expected_lock_time = $requests_per_second_limit * count($asins) / 10;
     if (!$this->lock->acquire(__CLASS__, min(30, $expected_lock_time + 5))) {
       throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
@@ -293,128 +290,177 @@ class ProductService {
     while ($fetch_asins) {
       // Amazon API allows querying 10 products per single request.
       $asins_chunk = array_splice($fetch_asins, 0, 10);
-      $amazon_data = [];
-
-      if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
-        throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
-      }
-
-      $this->increaseTodaysRequestCount();
-
-      $resources = [
-        GetItemsResource::IMAGESPRIMARYMEDIUM,
-        GetItemsResource::IMAGESPRIMARYLARGE,
-        GetItemsResource::ITEM_INFOBY_LINE_INFO,
-        GetItemsResource::ITEM_INFOTITLE,
-        GetItemsResource::OFFERSLISTINGSPRICE,
-        GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
-      ];
-
-      $partner_tag = AmazonPaapi::getPartnerTag();
-      $request = new GetItemsRequest();
-      $request->setItemIds($asins_chunk);
-      $request->setPartnerTag($partner_tag);
-      $request->setPartnerType(PartnerType::ASSOCIATES);
-      $request->setResources($resources);
+      $retry_individual = FALSE;
 
       try {
-        $response = $this->getAmazonPaapi()->getApi()->getItems($request);
-        if ($response->getItemsResult() && $response->getItemsResult()->getItems()) {
-          foreach ($response->getItemsResult()->getItems() as $item) {
-            $item_data = [
-              'ASIN' => $item->getASIN(),
-              'title' => NULL,
-              'url' => NULL,
-              'medium_image' => [],
-              'large_image' => [],
-              'price' => NULL,
-              'suggested_price' => NULL,
-              'currency' => NULL,
-              'manufacturer' => NULL,
-              'product_available' => FALSE,
-              'is_eligible_for_prime' => FALSE,
-            ];
-
-            if ($item->getDetailPageURL()) {
-              $item_data['url'] = $item->getDetailPageURL();
-            }
-
-            if ($item_info = $item->getItemInfo()) {
-              if ($item_info->getTitle()) {
-                $item_data['title'] = $item_info->getTitle()->getDisplayValue();
-              }
-              if ($item_info->getByLineInfo() && $item_info->getByLineInfo()->getManufacturer()) {
-                $item_data['manufacturer'] = $item_info->getByLineInfo()->getManufacturer()->getDisplayValue();
-              }
-            }
-
-            if (
-              $item->getOffers()
-              && $item->getOffers()->getListings()
-              && $item->getOffers()->getListings()[0]
-            ) {
-
-              $offer = $item->getOffers()->getListings()[0];
-              if ($price = $offer->getPrice()) {
-                $item_data['price'] = $price->getAmount();
-                $item_data['currency'] = $price->getCurrency();
-                $item_data['product_available'] = TRUE;
-
-                if ($savings = $price->getSavings()) {
-                  $item_data['suggested_price'] = $item_data['price'] + $savings->getAmount();
-                }
-              }
-
-              if ($offer->getDeliveryInfo() && $offer->getDeliveryInfo()->getIsPrimeEligible()) {
-                $item_data['is_eligible_for_prime'] = TRUE;
-              }
-            }
-
-            if ($item->getImages() && $primary_images = $item->getImages()->getPrimary()) {
-              if ($primary_images->getMedium()) {
-                $item_data['medium_image'] = [
-                  'URL' => $primary_images->getMedium()->getURL(),
-                  'Width' => $primary_images->getMedium()->getWidth(),
-                  'Height' => $primary_images->getMedium()->getHeight(),
-                ];
-              }
-              if ($primary_images->getLarge()) {
-                $item_data['large_image'] = [
-                  'URL' => $primary_images->getLarge()->getURL(),
-                  'Width' => $primary_images->getLarge()->getWidth(),
-                  'Height' => $primary_images->getLarge()->getHeight(),
-                ];
-              }
-            }
-            $amazon_data[$item->getASIN()] = $item_data;
-          }
-        }
+        $amazon_data = $this->fetchItemData($asins_chunk);
+      }
+      catch (AmazonRequestLimitReachedException $e) {
+        throw $e;
       }
       catch (\Exception $e) {
         $this->getAmazonPaapi()->logException($e);
+        $retry_individual = TRUE;
       }
 
-      // Also cache asins for which we couldn't get any data or else we would
-      // query the API again using up the request limit.
-      foreach ($asins_chunk as $asin) {
-        if (empty($amazon_data[$asin])) {
-          $amazon_data[$asin] = FALSE;
+      // When one of the asins caused an exception while fetching multiples, we
+      // have to go through them individually so we still get the data for the
+      // valid ones, as well as cache invalid asins.
+      if ($retry_individual) {
+        $amazon_data = [];
+        foreach ($asins_chunk as $asin) {
+          try {
+            $amazon_data += $this->fetchItemData([$asin]);
+          }
+          catch (AmazonRequestLimitReachedException $e) {
+            throw $e;
+          }
+          catch (\Exception $e) {
+            // Make sure the invalid response is cached as well.
+            $amazon_data[$asin] = FALSE;
+            $this->getAmazonPaapi()->logException($e);
+          }
         }
       }
 
-      if (!empty($amazon_data)) {
-        $this->productStore->setMultiple($amazon_data);
-        $product_data += $amazon_data;
-      }
+      // Cache the results.
+      $this->productStore->setMultiple($amazon_data);
 
-      // Wait for the request limit to pass if there are items left to process.
-      if (!empty($fetch_asins)) {
-        usleep(round($requests_per_second_limit * 1000 * 1000));
+      if (!empty($amazon_data)) {
+        $product_data += $amazon_data;
       }
     }
 
     $this->lock->release(__CLASS__);
     return $product_data;
+  }
+
+  /**
+   * Fetch item data directly from amazon.
+   *
+   * @param string[] $asins
+   *   Product ASINs.
+   *
+   * @return array
+   *   Associative array with ASIN-number as key, and product data as values.
+   *   If no data was retrieved for an ASIN, then the value is FALSE.
+   *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
+   * @throws \Amazon\ProductAdvertisingAPI\v1\ApiException
+   */
+  protected function fetchItemData(array $asins) {
+    if (empty($asins)) {
+      return [];
+    }
+
+    if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
+      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+    }
+
+    // In case other requests preceded this one, wait at the start.
+    $this->waitRequestsPerSecondLimit();
+
+    $amazon_data = [];
+    foreach ($asins as $asin) {
+      $amazon_data[$asin] = FALSE;
+    }
+
+    $resources = [
+      GetItemsResource::IMAGESPRIMARYMEDIUM,
+      GetItemsResource::IMAGESPRIMARYLARGE,
+      GetItemsResource::ITEM_INFOBY_LINE_INFO,
+      GetItemsResource::ITEM_INFOTITLE,
+      GetItemsResource::OFFERSLISTINGSPRICE,
+      GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
+    ];
+
+    $valid_asins = array_filter($asins, 'amazon_product_widget_is_valid_asin');
+
+    $partner_tag = AmazonPaapi::getPartnerTag();
+    $request = new GetItemsRequest();
+    $request->setItemIds($valid_asins);
+    $request->setPartnerTag($partner_tag);
+    $request->setPartnerType(PartnerType::ASSOCIATES);
+    $request->setResources($resources);
+
+    $this->increaseTodaysRequestCount();
+    $response = $this->getAmazonPaapi()->getApi()->getItems($request);
+
+    if ($response->getItemsResult() && $response->getItemsResult()->getItems()) {
+      foreach ($response->getItemsResult()->getItems() as $item) {
+        $item_data = [
+          'ASIN' => $item->getASIN(),
+          'title' => NULL,
+          'url' => NULL,
+          'medium_image' => [],
+          'large_image' => [],
+          'price' => NULL,
+          'suggested_price' => NULL,
+          'currency' => NULL,
+          'manufacturer' => NULL,
+          'product_available' => FALSE,
+          'is_eligible_for_prime' => FALSE,
+        ];
+
+        if ($item->getDetailPageURL()) {
+          $item_data['url'] = $item->getDetailPageURL();
+        }
+
+        if ($item_info = $item->getItemInfo()) {
+          if ($item_info->getTitle()) {
+            $item_data['title'] = $item_info->getTitle()
+              ->getDisplayValue();
+          }
+          if ($item_info->getByLineInfo() && $item_info->getByLineInfo()
+              ->getManufacturer()) {
+            $item_data['manufacturer'] = $item_info->getByLineInfo()
+              ->getManufacturer()
+              ->getDisplayValue();
+          }
+        }
+
+        if ($item->getOffers() && $item->getOffers()
+            ->getListings() && $item->getOffers()->getListings()[0]) {
+
+          $offer = $item->getOffers()->getListings()[0];
+          if ($price = $offer->getPrice()) {
+            $item_data['price'] = $price->getAmount();
+            $item_data['currency'] = $price->getCurrency();
+            $item_data['product_available'] = TRUE;
+
+            if ($savings = $price->getSavings()) {
+              $item_data['suggested_price'] = $item_data['price'] + $savings->getAmount();
+            }
+          }
+
+          if ($offer->getDeliveryInfo() && $offer->getDeliveryInfo()
+              ->getIsPrimeEligible()) {
+            $item_data['is_eligible_for_prime'] = TRUE;
+          }
+        }
+
+        if ($item->getImages() && $primary_images = $item->getImages()
+            ->getPrimary()) {
+          if ($primary_images->getMedium()) {
+            $item_data['medium_image'] = [
+              'URL' => $primary_images->getMedium()->getURL(),
+              'Width' => $primary_images->getMedium()->getWidth(),
+              'Height' => $primary_images->getMedium()->getHeight(),
+            ];
+          }
+          if ($primary_images->getLarge()) {
+            $item_data['large_image'] = [
+              'URL' => $primary_images->getLarge()->getURL(),
+              'Width' => $primary_images->getLarge()->getWidth(),
+              'Height' => $primary_images->getLarge()->getHeight(),
+            ];
+          }
+        }
+        $amazon_data[$item->getASIN()] = $item_data;
+      }
+    }
+
+    return $amazon_data;
   }
 
   /**
@@ -429,12 +475,8 @@ class ProductService {
    *   An array of ASIN-numbers which are the top result for that search.
    *
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
-   * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceUnavailableException
    */
   public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
-    $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
-    // In case other requests preceded this one.
-    usleep(round($requests_per_second_limit * 1000 * 1000));
     if (!$this->lock->acquire(__CLASS__)) {
       throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
     }
@@ -443,6 +485,8 @@ class ProductService {
       throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
     }
 
+    // In case other requests preceded this one, wait at the start.
+    $this->waitRequestsPerSecondLimit();
     $this->increaseTodaysRequestCount();
 
     $resources = [];
@@ -488,6 +532,14 @@ class ProductService {
    */
   public function getMaxRequestsPerDay() {
     return $this->maxRequestPerDay;
+  }
+
+  /**
+   * Waits the time that complies with the request per second limit.
+   */
+  protected function waitRequestsPerSecondLimit() {
+    $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
+    usleep(round($requests_per_second_limit * 1000 * 1000));
   }
 
   /**
