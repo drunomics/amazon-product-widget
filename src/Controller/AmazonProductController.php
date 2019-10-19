@@ -65,6 +65,7 @@ class AmazonProductController extends ControllerBase {
 
     $build = $this->getProductService()->buildProducts($entity_type, $entity_id, $fieldname);
     $cache_dependency = CacheableMetadata::createFromRenderArray($build);
+    $cache_dependency->addCacheContexts(['url.query_args']);
 
     $content = $this->renderer->renderRoot($build);
 
