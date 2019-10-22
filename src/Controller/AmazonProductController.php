@@ -59,20 +59,53 @@ class AmazonProductController extends ControllerBase {
    * Gets list of amazon products from provided ASINs.
    */
   public function get(Request $request) {
+    $content = [];
+    $count = 0;
+
     $entity_id = $request->query->get('entity_id');
     $entity_type = $request->query->get('entity_type');
     $fieldname = $request->query->get('field');
+    $as_json = $request->query->get('json');
 
-    $build = $this->getProductService()->buildProducts($entity_type, $entity_id, $fieldname);
-    $cache_dependency = CacheableMetadata::createFromRenderArray($build);
+    $cache_contexts = [
+      'url.query_args:entity_id',
+      'url.query_args:entity_type',
+      'url.query_args:field',
+      'url.query_args:json',
+    ];
 
-    $content = $this->renderer->renderRoot($build);
+    $cacheability = new CacheableMetadata();
+    $cacheability->addCacheContexts($cache_contexts);
+
+    /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
+    $storage = $this->entityTypeManager()->getStorage($entity_type);
+    if ($entity = $storage->load($entity_id)) {
+      if ($entity->hasField($fieldname)) {
+        /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $field */
+        $product_field = $entity->get($fieldname)->first();
+        if ($product_field instanceof AmazonProductField) {
+          $cacheability = CacheableMetadata::createFromObject($entity)->merge($cacheability);
+          if ($as_json) {
+            $content = $this->getProductService()->getProductsWithFallback($product_field);
+            $count = count($content['products']);
+          }
+          else {
+            $build = $this->getProductService()->buildProductsWithFallback($product_field);
+            $count = count($build['#products']);
+            $content = $this->renderer->renderRoot($build);
+          }
+        }
+      }
+    }
+
+    $max_age = $this->settings->get('render_max_age');
+    $max_age = !empty($max_age) ? $max_age : 3600;
+    $cacheability->setCacheMaxAge($max_age);
 
     $response = new CacheableJsonResponse();
-    $response->addCacheableDependency($cache_dependency);
-    $response->setData(['count' => count($build['#products']), 'content' => $content]);
-    $max_age = $this->settings->get('render_max_age');
-    $response->setMaxAge(!empty($max_age) ? $max_age : 3600);
+    $response->addCacheableDependency($cacheability);
+    $response->setData(['count' => $count, 'content' => $content]);
+    $response->setMaxAge($max_age);
 
     return $response;
   }

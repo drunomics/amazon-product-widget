@@ -45,7 +45,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'manufacturer' => '',
         'price' => '',
         'suggested_price' => '',
-        'product_available' => TRUE,
+        'product_available' => FALSE,
         'is_eligible_for_prime' => FALSE,
       ],
     ],

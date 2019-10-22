@@ -582,42 +582,65 @@ class ProductService {
   }
 
   /**
-   * Builds products.
+   * Builds products for theming with fallback.
    *
-   * @param string $entity_type
-   *   The entity type.
-   * @param string $entity_id
-   *   The entity id.
-   * @param string $fieldname
-   *   The field name.
+   * @param AmazonProductField $product_field
+   *   Product field.
    *
    * @return mixed[]
-   *   Build array.
+   *   Render array.
    *
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  public function buildProducts($entity_type, $entity_id, $fieldname) {
-    $content = NULL;
-    $title = '';
-    $search_terms = '';
-    $asins = [];
-    $cache_dependency = new CacheableMetadata();
+  public function buildProductsWithFallback(AmazonProductField $product_field) {
+    $products_container = $this->getProductsWithFallback($product_field);
 
-    /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
-    $storage = $this->entityTypeManager->getStorage($entity_type);
-    if ($entity = $storage->load($entity_id)) {
-      if ($entity->hasField($fieldname)) {
-        /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $field */
-        $field = $entity->get($fieldname)->first();
-        if ($field instanceof AmazonProductField) {
-          $cache_dependency = CacheableMetadata::createFromObject($entity)->merge($cache_dependency);
-          $asins = $field->getAsins();
-          $title = $field->getTitle();
-          $search_terms = $field->getSearchTerms();
-        }
-      }
+    $product_build = [];
+    $product_data = !empty($products_container['products']) ? $products_container['products'] : [];
+
+    foreach ($product_data as $data) {
+      $product_build[] = [
+        '#theme' => 'amazon_product_widget_product',
+        '#medium_image' => $data['medium_image'],
+        '#large_image' => $data['large_image'],
+        '#name' => $data['name'],
+        '#title' => $data['title'],
+        '#url' => $data['url'],
+        '#call_to_action_text' => $data['call_to_action_text'],
+        '#currency_symbol' => $data['currency_symbol'],
+        '#manufacturer' => $data['manufacturer'],
+        '#price' => $data['price'],
+        '#suggested_price' => $data['suggested_price'],
+        '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
+      ];
     }
+
+    $build = [
+      '#theme' => 'amazon_product_widget_shopping',
+      '#title' => $products_container['title'],
+      '#products' => $product_build,
+    ];
+
+    return $build;
+  }
+
+  /**
+   * Gets the raw product data with fallback.
+   *
+   * @param AmazonProductField $product_field
+   *   Product field.
+   *
+   * @return mixed[]
+   *   Data array.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  public function getProductsWithFallback(AmazonProductField $product_field) {
+    $asins = $product_field->getAsins();
+    $title = $product_field->getTitle();
+    $search_terms = $product_field->getSearchTerms();
 
     try {
       $product_data = $this->getProductData($asins);
@@ -673,34 +696,30 @@ class ProductService {
       'Width' => NULL,
     ];
 
-    $product_build = [];
+    $products = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
-      $product_build[] = [
-        '#theme' => 'amazon_product_widget_product',
-        '#medium_image' => $data['medium_image'] + $image_defaults,
-        '#large_image' => $data['large_image'] + $image_defaults,
-        '#name' => $data['title'],
-        '#title' => $data['title'],
-        '#url' => $data['url'],
-        '#call_to_action_text' => $this->settings->get('call_to_action_text'),
-        '#currency_symbol' => $data['currency'],
-        '#manufacturer' => $data['manufacturer'],
-        '#price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
-        '#suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
-        '#is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
+      $products[] = [
+        'medium_image' => $data['medium_image'] + $image_defaults,
+        'large_image' => $data['large_image'] + $image_defaults,
+        'name' => $data['title'],
+        'title' => $data['title'],
+        'url' => $data['url'],
+        'call_to_action_text' => $this->settings->get('call_to_action_text'),
+        'currency_symbol' => $data['currency'],
+        'manufacturer' => $data['manufacturer'],
+        'price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
+        'suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
+        'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
       ];
     }
 
-    $build = [
-      '#theme' => 'amazon_product_widget_shopping',
-      '#title' => $title,
-      '#products' => $product_build,
+    $products_container = [
+      'title' => $title,
+      'products' => $products,
     ];
 
-    $cache_dependency->applyTo($build);
-
-    return $build;
+    return $products_container;
   }
 
 }
