@@ -97,8 +97,16 @@ class AmazonApiSubscriber implements EventSubscriberInterface {
       // Adjust cache control headers.
       $response->headers->removeCacheControlDirective('must-revalidate');
       $response->headers->removeCacheControlDirective('no-cache');
-      $max_age = $this->settings->get('render_max_age');
-      $response->setCache(['max_age' => !empty($max_age) ? $max_age : 3600]);
+
+      // We usually want to use the set max age from the metadata, but in case
+      // it wasn't set fallback to default settings.
+      $max_age = $response->getCacheableMetadata()->getCacheMaxAge();
+      if (empty($max_age)) {
+        $max_age = $this->settings->get('render_max_age');
+        $max_age = !empty($max_age) ? $max_age : 3600;
+      }
+
+      $response->setMaxAge($max_age);
       $response->setPublic();
     }
   }
