@@ -10,7 +10,6 @@ use Drupal\amazon_paapi\AmazonPaapi;
 use Drupal\amazon_paapi\AmazonPaapiTrait;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
-use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Lock\LockBackendInterface;
@@ -71,7 +70,7 @@ class ProductService {
   protected $state;
 
   /**
-   * Lock.
+   * Lock backend.
    *
    * @var \Drupal\Core\Lock\LockBackendInterface
    */
@@ -106,7 +105,7 @@ class ProductService {
    * @param \Drupal\Core\State\StateInterface $state
    *   State.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
-   *   Lock.
+   *   Lock backend.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
    *   Config factory.
    * @param \Drupal\Core\Queue\QueueInterface $queue
@@ -282,8 +281,12 @@ class ProductService {
 
     $requests_per_second_limit = min(1, 1 / $this->maxRequestPerSecond);
     $expected_lock_time = $requests_per_second_limit * count($asins) / 10;
-    if (!$this->lock->acquire(__CLASS__, min(30, $expected_lock_time + 5))) {
-      throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
+    $timeout = min(30, $expected_lock_time + 5);
+    if (!$this->lock->acquire(__CLASS__, $timeout)) {
+      $this->lock->wait(__CLASS__);
+      if (!$this->lock->acquire(__CLASS__, $timeout)) {
+        throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
+      }
     }
 
     $fetch_asins = $asins;
@@ -296,6 +299,7 @@ class ProductService {
         $amazon_data = $this->fetchItemData($asins_chunk);
       }
       catch (AmazonRequestLimitReachedException $e) {
+        $this->lock->release(__CLASS__);
         throw $e;
       }
       catch (\Exception $e) {
@@ -313,6 +317,7 @@ class ProductService {
             $amazon_data += $this->fetchItemData([$asin]);
           }
           catch (AmazonRequestLimitReachedException $e) {
+            $this->lock->release(__CLASS__);
             throw $e;
           }
           catch (\Exception $e) {
@@ -480,12 +485,15 @@ class ProductService {
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
-    if (!$this->lock->acquire(__CLASS__)) {
-      throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
-    }
-
     if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
       throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+    }
+
+    if (!$this->lock->acquire(__CLASS__)) {
+      $this->lock->wait(__CLASS__);
+      if (!$this->lock->acquire(__CLASS__)) {
+        throw new AmazonRequestLimitReachedException('Amazon API currently blocked by another process.');
+      }
     }
 
     // In case other requests preceded this one, wait at the start.
@@ -518,13 +526,14 @@ class ProductService {
       $this->getAmazonPaapi()->logException($e);
     }
 
+    $this->lock->release(__CLASS__);
+
     // Make sure to cache the response even if there are no results, that way
     // we don't query the api every time.
     $key = ProductStore::createSearchResultKey($search_terms, $category);
     $data = ProductStore::createSearchResultData($search_terms, $category, $asins);
     $this->searchResultStore->set($key, $data);
 
-    $this->lock->release(__CLASS__);
     return $asins;
   }
 
@@ -589,9 +598,6 @@ class ProductService {
    *
    * @return mixed[]
    *   Render array.
-   *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function buildProductsWithFallback(AmazonProductField $product_field) {
     $products_container = $this->getProductsWithFallback($product_field);
@@ -633,9 +639,6 @@ class ProductService {
    *
    * @return mixed[]
    *   Data array.
-   *
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function getProductsWithFallback(AmazonProductField $product_field) {
     $asins = $product_field->getAsins();

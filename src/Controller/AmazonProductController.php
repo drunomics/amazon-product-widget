@@ -8,6 +8,7 @@ use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Lock\LockBackendInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Render\RendererInterface;
@@ -27,6 +28,13 @@ class AmazonProductController extends ControllerBase {
   protected $renderer;
 
   /**
+   * Lock backend.
+   *
+   * @var \Drupal\Core\Lock\LockBackendInterface
+   */
+  protected $lock;
+
+  /**
    * Amazon product widget settings.
    *
    * @var \Drupal\Core\Config\ImmutableConfig
@@ -37,11 +45,14 @@ class AmazonProductController extends ControllerBase {
    * AmazonProductController constructor.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
+   * @param \Drupal\Core\Lock\LockBackendInterface $lock
+   *   Lock backend.
    * @param \Drupal\Core\Config\ImmutableConfig $settings
    *   Amazon product widget settings.
    */
-  public function __construct(RendererInterface $renderer, ImmutableConfig $settings) {
+  public function __construct(RendererInterface $renderer, LockBackendInterface $lock, ImmutableConfig $settings) {
     $this->renderer = $renderer;
+    $this->lock = $lock;
     $this->settings = $settings;
   }
 
@@ -51,6 +62,7 @@ class AmazonProductController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('renderer'),
+      $container->get('lock'),
       $container->get('config.factory')->get('amazon_product_widget.settings')
     );
   }
@@ -74,8 +86,25 @@ class AmazonProductController extends ControllerBase {
       'url.query_args:json',
     ];
 
+    $max_age = $this->settings->get('render_max_age');
+    $max_age = !empty($max_age) ? $max_age : 3600;
+
     $cacheability = new CacheableMetadata();
     $cacheability->addCacheContexts($cache_contexts);
+    $cacheability->setCacheMaxAge($max_age);
+
+    if (!$this->lock->acquire(__CLASS__)) {
+      $this->lock->wait(__CLASS__);
+      if (!$this->lock->acquire(__CLASS__)) {
+        // Return temporary cached response with no data and retry in 30 sec.
+        $retry = 30;
+        $cacheability->setCacheMaxAge($retry);
+        $response = new CacheableJsonResponse();
+        $response->setData(['count' => $count, 'content' => $content]);
+        $response->addCacheableDependency($cacheability);
+        return $response;
+      }
+    }
 
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
     $storage = $this->entityTypeManager()->getStorage($entity_type);
@@ -98,14 +127,11 @@ class AmazonProductController extends ControllerBase {
       }
     }
 
-    $max_age = $this->settings->get('render_max_age');
-    $max_age = !empty($max_age) ? $max_age : 3600;
-    $cacheability->setCacheMaxAge($max_age);
+    $this->lock->release(__CLASS__);
 
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cacheability);
     $response->setData(['count' => $count, 'content' => $content]);
-    $response->setMaxAge($max_age);
 
     return $response;
   }
