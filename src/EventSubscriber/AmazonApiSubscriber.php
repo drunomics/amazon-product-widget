@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\EventSubscriber;
 
+use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -100,7 +101,10 @@ class AmazonApiSubscriber implements EventSubscriberInterface {
 
       // We usually want to use the set max age from the metadata, but in case
       // it wasn't set fallback to default settings.
-      $max_age = $response->getCacheableMetadata()->getCacheMaxAge();
+      if ($response instanceof CacheableResponseInterface) {
+        $max_age = $response->getCacheableMetadata()->getCacheMaxAge();
+      }
+
       if (empty($max_age)) {
         $max_age = $this->settings->get('render_max_age');
         $max_age = !empty($max_age) ? $max_age : 3600;
