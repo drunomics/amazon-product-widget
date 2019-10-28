@@ -93,19 +93,6 @@ class AmazonProductController extends ControllerBase {
     $cacheability->addCacheContexts($cache_contexts);
     $cacheability->setCacheMaxAge($max_age);
 
-    if (!$this->lock->acquire(__CLASS__)) {
-      $this->lock->wait(__CLASS__);
-      if (!$this->lock->acquire(__CLASS__)) {
-        // Return temporary cached response with no data and retry in 30 sec.
-        $retry = 30;
-        $cacheability->setCacheMaxAge($retry);
-        $response = new CacheableJsonResponse();
-        $response->setData(['count' => $count, 'content' => $content]);
-        $response->addCacheableDependency($cacheability);
-        return $response;
-      }
-    }
-
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
     $storage = $this->entityTypeManager()->getStorage($entity_type);
     if ($entity = $storage->load($entity_id)) {
@@ -126,8 +113,6 @@ class AmazonProductController extends ControllerBase {
         }
       }
     }
-
-    $this->lock->release(__CLASS__);
 
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cacheability);
