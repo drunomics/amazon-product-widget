@@ -86,12 +86,8 @@ class AmazonProductController extends ControllerBase {
       'url.query_args:json',
     ];
 
-    $max_age = $this->settings->get('render_max_age');
-    $max_age = !empty($max_age) ? $max_age : 3600;
-
     $cacheability = new CacheableMetadata();
     $cacheability->addCacheContexts($cache_contexts);
-    $cacheability->setCacheMaxAge($max_age);
 
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
     $storage = $this->entityTypeManager()->getStorage($entity_type);
@@ -113,6 +109,12 @@ class AmazonProductController extends ControllerBase {
         }
       }
     }
+
+    // Max age for the response will be set in the event subscriber.
+    // @see \Drupal\amazon_product_widget\EventSubscriber\AmazonApiSubscriber::onRespond()
+    $max_age = $this->settings->get('render_max_age');
+    $max_age = !empty($max_age) ? $max_age : 3600;
+    $cacheability->setCacheMaxAge($max_age);
 
     $response = new CacheableJsonResponse();
     $response->addCacheableDependency($cacheability);
