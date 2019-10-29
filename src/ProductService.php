@@ -718,7 +718,7 @@ class ProductService {
     }
 
     $products_container = [
-      'title' => $title,
+      'title' => (string) $title,
       'products' => $products,
     ];
 
