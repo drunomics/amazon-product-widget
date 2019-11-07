@@ -50,11 +50,7 @@ class AmazonProductFieldFormatter extends FormatterBase {
 
     if ($this->getSetting('render_inline')) {
       $build['#products'] = $this->getProductService()
-        ->buildProducts(
-          $field->getEntity()->getEntityTypeId(),
-          $field->getEntity()->id(),
-          $field->getParent()->getName()
-        );
+        ->buildProductsWithFallback($field);
     }
 
     CacheableMetadata::createFromObject($items->getEntity())->applyTo($build);
