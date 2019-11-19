@@ -656,7 +656,7 @@ class ProductService {
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
     foreach ($product_data as $asin => $data) {
-      if (empty($data['product_available'])) {
+      if (!$this->validateProductData($data)) {
         $replace[] = $asin;
       }
     }
@@ -686,15 +686,15 @@ class ProductService {
         if (
           empty($product_data[$asin])
           && !empty($fallback_data[$asin])
-          && $fallback_data[$asin]['medium_image']
-          && $fallback_data[$asin]['large_image']
-          && $fallback_data[$asin]['title']
-          && $fallback_data[$asin]['price']
-          && $fallback_data[$asin]['product_available']
+          && $this->validateProductData($fallback_data[$asin])
         ) {
           $product_data[$asin] = $fallback_data[$asin];
-          array_pop($replace);
-          $remaining_to_fill_up--;
+          if (count($replace)) {
+            array_pop($replace);
+          }
+          else {
+            $remaining_to_fill_up--;
+          }
           if (count($replace) + $remaining_to_fill_up <= 0) {
             break;
           }
@@ -735,6 +735,26 @@ class ProductService {
     ];
 
     return $products_container;
+  }
+
+  /**
+   * Validates product data.
+   *
+   * @param $data
+   *   The product data to check.
+   *
+   * @return bool
+   *   The validity.
+   */
+  protected function validateProductData($data) {
+    if (!empty($data['medium_image'])
+      && !empty($data['large_image'])
+      && !empty($data['title'])
+      && !empty($data['price'])
+      && !empty($data['product_available'])) {
+      return TRUE;
+    }
+    return FALSE;
   }
 
 }
