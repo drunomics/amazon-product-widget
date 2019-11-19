@@ -661,7 +661,14 @@ class ProductService {
       }
     }
 
-    if (!empty($replace)) {
+    $fill_up_with_fallback = $this->settings->get('fill_up_with_fallback');
+    $remaining_to_fill_up = 0;
+
+    if ($fill_up_with_fallback && !empty($product_data) && count($product_data) < 3) {
+      $remaining_to_fill_up = 3 - count($product_data);
+    }
+
+    if (!empty($replace) || $remaining_to_fill_up) {
       try {
         $fallback_asins = $this->getSearchResults($search_terms, ProductService::AMAZON_CATEGORY_DEFAULT);
         $fallback_data = $this->getProductData($fallback_asins);
@@ -679,11 +686,16 @@ class ProductService {
         if (
           empty($product_data[$asin])
           && !empty($fallback_data[$asin])
+          && $fallback_data[$asin]['medium_image']
+          && $fallback_data[$asin]['large_image']
+          && $fallback_data[$asin]['title']
+          && $fallback_data[$asin]['price']
           && $fallback_data[$asin]['product_available']
         ) {
           $product_data[$asin] = $fallback_data[$asin];
           array_pop($replace);
-          if (empty($replace)) {
+          $remaining_to_fill_up--;
+          if (count($replace) + $remaining_to_fill_up <= 0) {
             break;
           }
         }

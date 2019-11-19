@@ -4,3 +4,4 @@ render_max_age: 3600
 call_to_action_text: Buy
 price_decimal_separator: '.'
 price_thousand_separator: ''
+fill_up_with_fallback: 0
