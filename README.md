@@ -59,7 +59,11 @@ Set the following `amazon_product_widget.settings` configuration:
     (see [Caching and request limits](#caching-and-request-limits))
   * `render_max_age` - Render cache for the widget in seconds
   * `call_to_action_text` - Link text for the product which leads to amazon page
- 
+  * `price_decimal_separator` - Decimal separator used for the price
+  * `price_thousand_separator` - Thousand separator used for the price
+  * `fill_up_with_fallback` - Search terms will always fill up to 3 products
+                              even if only one ASIN was entered into the widget
+                               
 Add the `Amazon product widget` field to a node or paragraph and configure 
 form & display.
    
