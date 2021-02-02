@@ -66,3 +66,23 @@ function amazon_product_widget_update_8001() {
     drupal_install_schema('amazon_product_widget');
   }
 }
+
+/**
+ * Adds field 'overrides' to 'amazon_product_widget_key_value' database table.
+ */
+function amazon_product_widget_update_8002() {
+  $schema = [
+    'type' => 'text',
+    'description' => 'Stores overrides for amazon product widget',
+    'not null' => FALSE,
+  ];
+
+  $database = \Drupal::database();
+  if (!$database->schema()->fieldExists('amazon_product_widget_key_value', 'field_overrides')) {
+    $database->schema()->addField(
+      'amazon_product_widget_key_value',
+      'overrides',
+      $schema
+    );
+  }
+}
