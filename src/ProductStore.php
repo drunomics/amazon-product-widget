@@ -76,6 +76,51 @@ class ProductStore extends DatabaseStorage {
   }
 
   /**
+   * Sets overrides for the given key.
+   *
+   * @param string $key
+   *   Key.
+   * @param array $overrides
+   *   The overrides.
+   *
+   * @throws \Exception
+   */
+  public function setOverride($key, array $overrides) {
+    $this->connection->merge($this->table)
+      ->keys([
+        'name' => $key,
+        'collection' => $this->collection,
+      ])
+      ->fields(['overrides' => $this->serializer->encode($overrides)])
+      ->execute();
+  }
+
+  /**
+   * Gets overrides for the given ASIN numbers.
+   *
+   * @param array $asins
+   *   The ASINs.
+   *
+   * @return array
+   *   Overrides, keyed by ASIN.
+   */
+  public function getOverrides($asins) {
+    $values = [];
+    try {
+      $result = $this->connection->query('SELECT name,  FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $asins, ':collection' => $this->collection])->fetchAllAssoc('name');
+      foreach ($asins as $asin) {
+        if (isset($result[$asin])) {
+          $values[$asin] = $this->serializer->decode($result[$asin]->overrides);
+        }
+      }
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
+    }
+    return $values;
+  }
+
+  /**
    * {@inheritdoc}
    *
    * @param array $data

@@ -187,6 +187,13 @@ class ProductService {
       $product_data += $this->fetchAmazonProducts($fetch_asins);
     }
 
+    $overrides = $this->productStore->getOverrides($asins);
+    foreach ($product_data as $key => $value) {
+      if (isset($overrides[$key])) {
+        $product_data[$key]['overrides'] = $overrides[$key];
+      }
+    }
+
     return $product_data;
   }
 
@@ -757,6 +764,20 @@ class ProductService {
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Sets overrides for the given ASIN keys.
+   *
+   * @param array $overrides
+   *   Overrides, keyed by ASIN.
+   *
+   * @throws \Exception
+   */
+  public function setOverrides(array $overrides) {
+    foreach ($overrides as $key => $override) {
+      $this->productStore->setOverride($key, $override);
+    }
   }
 
 }
