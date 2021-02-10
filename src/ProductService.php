@@ -608,6 +608,7 @@ class ProductService {
     foreach ($product_data as $data) {
       $product_build[] = [
         '#theme' => 'amazon_product_widget_product',
+        '#asin' => $data['asin'],
         '#medium_image' => $data['medium_image'],
         '#large_image' => $data['large_image'],
         '#name' => $data['name'],
@@ -717,6 +718,7 @@ class ProductService {
       $products[] = [
         'medium_image' => $data['medium_image'] + $image_defaults,
         'large_image' => $data['large_image'] + $image_defaults,
+        'asin' => $data['ASIN'],
         'name' => $data['title'],
         'title' => $data['title'],
         'url' => $data['url'],

@@ -37,6 +37,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
           'Height' => NULL,
           'Width' => NULL,
         ],
+        'asin' => '',
         'name' => '',
         'title' => '',
         'url' => '',
