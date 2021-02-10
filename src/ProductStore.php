@@ -107,7 +107,7 @@ class ProductStore extends DatabaseStorage {
   public function getOverrides($asins) {
     $values = [];
     try {
-      $result = $this->connection->query('SELECT name,  FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $asins, ':collection' => $this->collection])->fetchAllAssoc('name');
+      $result = $this->connection->query('SELECT name, overrides  FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $asins, ':collection' => $this->collection])->fetchAllAssoc('name');
       foreach ($asins as $asin) {
         if (isset($result[$asin])) {
           $values[$asin] = $this->serializer->decode($result[$asin]->overrides);
