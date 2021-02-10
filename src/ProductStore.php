@@ -121,6 +121,27 @@ class ProductStore extends DatabaseStorage {
   }
 
   /**
+   * The same as DatabaseStorage::getMultiple() but with our overrides added.
+   *
+   * {@inheritDoc}
+   */
+  public function getMultipleWithOverrides(array $keys) {
+    $values = [];
+    try {
+      $result = $this->connection->query('SELECT name, value, overrides FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $keys, ':collection' => $this->collection])->fetchAllAssoc('name');
+      foreach ($keys as $key) {
+        if (isset($result[$key])) {
+          $values[$key] = $this->serializer->decode($result[$key]->value);
+          $values[$key]['overrides'] = $this->serializer($result[$key]->overrides);
+        }
+      }
+    }
+    catch (\Exception $e) {
+    }
+    return $values;
+  }
+
+  /**
    * {@inheritdoc}
    *
    * @param array $data

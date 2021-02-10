@@ -179,19 +179,12 @@ class ProductService {
     }
     else {
       // Fetch data from the cache first.
-      $product_data = $this->productStore->getMultiple($asins);
+      $product_data = $this->productStore->getMultipleWithOverrides($asins);
       $fetch_asins = array_diff($asins, array_keys($product_data));
     }
 
     if (!empty($fetch_asins)) {
       $product_data += $this->fetchAmazonProducts($fetch_asins);
-    }
-
-    $overrides = $this->productStore->getOverrides($asins);
-    foreach ($product_data as $key => $value) {
-      if (isset($overrides[$key])) {
-        $product_data[$key]['overrides'] = $overrides[$key];
-      }
     }
 
     return $product_data;

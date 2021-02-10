@@ -48,6 +48,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'suggested_price' => '',
         'product_available' => FALSE,
         'is_eligible_for_prime' => FALSE,
+        'overrides' => [],
       ],
     ],
   ];
