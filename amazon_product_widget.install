@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Install file.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function amazon_product_widget_schema() {
+  $schema['amazon_product_widget_key_value'] = [
+    'description' => 'Generic key/value storage table with a renewal time.',
+    'fields' => [
+      'collection' => [
+        'description' => 'A named collection of key and value pairs.',
+        'type' => 'varchar_ascii',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'name' => [
+        // KEY is an SQL reserved word, so use 'name' as the key's field name.
+        'description' => 'The key of the key/value pair.',
+        'type' => 'varchar_ascii',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'value' => [
+        'description' => 'The value of the key/value pair.',
+        'type' => 'blob',
+        'not null' => TRUE,
+        'size' => 'big',
+      ],
+      'overrides' => [
+        'type' => 'text',
+        'description' => 'Stores overrides for amazon product widget',
+        'not null' => FALSE,
+      ],
+      'renewal' => [
+        'description' => 'The time since Unix epoch in seconds when this item expires.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['collection', 'name'],
+    'indexes' => [
+      'all' => ['name', 'collection', 'renewal'],
+      'renewal' => ['renewal'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function amazon_product_widget_uninstall() {
+  \Drupal::configFactory()->getEditable('amazon_product_widget.settings')->delete();
+}
+
+/**
+ * Create 'amazon_product_widget_key_value' database table.
+ */
+function amazon_product_widget_update_8001() {
+  $database = \Drupal::database();
+  if (!$database->schema()->tableExists('amazon_product_widget_key_value')) {
+    drupal_install_schema('amazon_product_widget');
+  }
+}
+
+/**
+ * Adds field 'overrides' to 'amazon_product_widget_key_value' database table.
+ */
+function amazon_product_widget_update_8002() {
+  $schema = [
+    'type' => 'text',
+    'description' => 'Stores overrides for amazon product widget',
+    'not null' => FALSE,
+  ];
+
+  $database = \Drupal::database();
+  if (!$database->schema()->fieldExists('amazon_product_widget_key_value', 'field_overrides')) {
+    $database->schema()->addField(
+      'amazon_product_widget_key_value',
+      'overrides',
+      $schema
+    );
+  }
+}
