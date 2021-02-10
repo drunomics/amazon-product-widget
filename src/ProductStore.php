@@ -132,11 +132,12 @@ class ProductStore extends DatabaseStorage {
       foreach ($keys as $key) {
         if (isset($result[$key])) {
           $values[$key] = $this->serializer->decode($result[$key]->value);
-          $values[$key]['overrides'] = $this->serializer($result[$key]->overrides);
+          $values[$key]['overrides'] = $this->serializer->decode($result[$key]->overrides);
         }
       }
     }
-    catch (\Exception $e) {
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
     }
     return $values;
   }
