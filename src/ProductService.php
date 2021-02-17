@@ -620,6 +620,7 @@ class ProductService {
         '#price' => $data['price'],
         '#suggested_price' => $data['suggested_price'],
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
+        '#overrides' => $data['overrides'],
       ];
     }
 
