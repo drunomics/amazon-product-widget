@@ -90,10 +90,12 @@ class ProductStore extends DatabaseStorage {
     $this->connection->merge($this->table)
       ->keys([
         'name' => $key,
-        'collection' => $this->collection,
-        'value' => $value,
+        'collection' => $this->collection
       ])
-      ->fields(['overrides' => $this->serializer->encode($overrides)])
+      ->fields([
+        'overrides' => $this->serializer->encode($overrides),
+        'value' => $this->serializer->encode($value),
+      ])
       ->execute();
   }
 
