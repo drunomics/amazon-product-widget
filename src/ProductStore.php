@@ -219,6 +219,20 @@ class ProductStore extends DatabaseStorage {
   }
 
   /**
+   * Gets the number of stale entries in the product database.
+   *
+   * @return int
+   *   The number of stale entries.
+   */
+  public function getOutdatedKeysCount() {
+    $query = $this->connection->select($this->table, 'ta');
+    $query->condition('collection', $this->collection);
+    $query->condition('renewal', time(), '<');
+    $query->addExpression('COUNT(*)');
+    return $query->execute()->fetchField();
+  }
+
+  /**
    * Check whether there is data available for renewal.
    *
    * @return bool

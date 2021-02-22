@@ -117,10 +117,7 @@ class AmazonProductWidgetCommands extends DrushCommands {
    * @command apw:stale
    */
   public function itemsDueForRenewal() {
-    // Default of getOutdatedKeys() is 100, since we want to show all that are
-    // stale we use 1M as a safe bet that nobody will have this many products
-    // stored.
-    $outdated = count($this->productService->getProductStore()->getOutdatedKeys(1000000));
+    $outdated = $this->productService->getProductStore()->getOutdatedKeysCount();
     $this->io()->note("There are " . $outdated . " products waiting for renewal.");
   }
 
