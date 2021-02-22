@@ -83,7 +83,7 @@ function amazon_product_widget_update_8002() {
   ];
 
   $database = \Drupal::database();
-  if (!$database->schema()->fieldExists('amazon_product_widget_key_value', 'field_overrides')) {
+  if (!$database->schema()->fieldExists('amazon_product_widget_key_value', 'overrides')) {
     $database->schema()->addField(
       'amazon_product_widget_key_value',
       'overrides',
