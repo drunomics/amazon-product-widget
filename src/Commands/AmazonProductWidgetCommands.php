@@ -122,4 +122,27 @@ class AmazonProductWidgetCommands extends DrushCommands {
     $outdated = count($this->productService->getProductStore()->getOutdatedKeys(1000000));
     $this->io()->note("There are " . $outdated . " products waiting for renewal.");
   }
+
+  /**
+   * Gets overrides for a specific Amazon product.
+   *
+   * @param string $asin
+   *   The ASIN to get the overrides for.
+   *
+   * @command apw:overrides
+   * @usage apw:overrides AE91ECBUDA
+   */
+  public function getOverridesForProduct($asin) {
+    try {
+      $productData = $this->productService->getProductData([$asin]);
+      if (isset($productData[$asin]['overrides'])) {
+        $this->io()->note("The following overrides were found for: $asin");
+        $this->io()->note(var_export($productData[$asin]['overrides'], TRUE));
+      }
+    }
+    catch (\Exception $exception) {
+      $this->io()->warning("An unexpected error has occurred:");
+      $this->io()->warning($exception->getMessage());
+    }
+  }
 }
