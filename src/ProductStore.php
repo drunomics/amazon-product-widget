@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Serialization\SerializationInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Query\Merge;
@@ -27,6 +28,13 @@ class ProductStore extends DatabaseStorage {
   const COLLECTION_SEARCH_RESULTS = 'search_results';
 
   /**
+   * TimeInterface.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface 
+   */
+  protected $time;
+
+  /**
    * Overrides Drupal\Core\KeyValueStore\StorageBase::__construct().
    *
    * @param string $collection
@@ -35,9 +43,12 @@ class ProductStore extends DatabaseStorage {
    *   The serialization class to use.
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection to use.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The TimeInterface object.
    */
-  public function __construct($collection, SerializationInterface $serializer, Connection $connection) {
+  public function __construct($collection, SerializationInterface $serializer, Connection $connection, TimeInterface $time) {
     parent::__construct($collection, $serializer, $connection, 'amazon_product_widget_key_value');
+    $this->time = $time;
   }
 
   /**
@@ -47,7 +58,7 @@ class ProductStore extends DatabaseStorage {
    */
   protected function getNextRenewalTime() {
     // Read the configured renewal time in hours.
-    return time() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_time', 48) * 3600;
+    return $this->time->getRequestTime() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_time', 48) * 3600;
   }
 
   /**
@@ -212,7 +223,7 @@ class ProductStore extends DatabaseStorage {
 
     $result = $this->connection->queryRange('SELECT name FROM {' . $this->connection->escapeTable($this->table) . '} WHERE collection = :collection AND renewal < :renewal', 0, $limit, [
       ':collection' => $this->collection,
-      ':renewal' => time(),
+      ':renewal' => $this->time->getRequestTime(),
     ]);
 
     return $result->fetchCol();
@@ -227,8 +238,8 @@ class ProductStore extends DatabaseStorage {
   public function getOutdatedKeysCount() {
     $query = $this->connection->select($this->table, 'ta');
     $query->condition('collection', $this->collection);
-    $query->condition('renewal', time(), '<');
-    $query->addExpression('COUNT(*)');
+    $query->condition('renewal', $this->time->getRequestTime(), '<');
+    $query->countQuery();
     return $query->execute()->fetchField();
   }
 
