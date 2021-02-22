@@ -1,0 +1,9 @@
+services:
+  amazon_product_widget.commands:
+    class: \Drupal\amazon_product_widget\Commands\AmazonProductWidgetCommands
+    arguments:
+      - '@amazon_product_widget.product_service'
+      - '@queue'
+      - '@plugin.manager.queue_worker'
+    tags:
+      - { name: drush.command }
