@@ -50,6 +50,7 @@ class AmazonProductWidgetCommands extends DrushCommands {
    *   QueueWorkerManagerInterface.
    */
   public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker) {
+    parent::__construct();
     $this->productService = $productService;
     $this->queue = $queue;
     $this->queueWorker = $queueWorker;
