@@ -80,11 +80,14 @@ class AmazonProductWidgetCommands extends DrushCommands {
    * Updates all product data.
    *
    * @command apw:run-product-renewal
+   * @option force
+   *   Forces the command to run until all products have been updated.
    *
    * @throws \Exception
    */
-  public function updateProductData() {
+  public function updateProductData($options = ['force' => FALSE]) {
     $queue = $this->queue->get('amazon_product_widget.product_data_update');
+    repeat:
     if ($this->productService->getProductStore()->hasStaleData()) {
       $this->productService->queueProductRenewal();
 
@@ -103,6 +106,10 @@ class AmazonProductWidgetCommands extends DrushCommands {
           $this->io()->warning("An exception has occurred:");
           $this->io()->warning($exception->getMessage());
         }
+      }
+
+      if ($this->productService->getProductStore()->hasStaleData() && $options['force']) {
+        goto repeat;
       }
       $this->io()->note("All items have been processed.");
     }
