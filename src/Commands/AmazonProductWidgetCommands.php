@@ -150,4 +150,13 @@ class AmazonProductWidgetCommands extends DrushCommands {
       $this->io()->warning($exception->getMessage());
     }
   }
+
+  /**
+   * Resets all renewal times so all products are stale.
+   *
+   * @command apw:reset-all-renewals
+   */
+  public function resetAllRenewals() {
+    $this->productService->getProductStore()->resetAll();
+  }
 }
