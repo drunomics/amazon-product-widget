@@ -103,8 +103,7 @@ class AmazonProductWidgetCommands extends DrushCommands {
           break;
         }
         catch (\Exception $exception) {
-          $this->io()->warning("An exception has occurred:");
-          $this->io()->warning($exception->getMessage());
+          watchdog_exception('amazon_product_widget', $exception);
         }
       }
 
@@ -143,6 +142,9 @@ class AmazonProductWidgetCommands extends DrushCommands {
       if (isset($productData[$asin]['overrides'])) {
         $this->io()->note("The following overrides were found for: $asin");
         $this->io()->note(var_export($productData[$asin]['overrides'], TRUE));
+      }
+      else {
+        $this->io()->warning("No product with ASIN $asin has been found.");
       }
     }
     catch (\Exception $exception) {
