@@ -30,6 +30,7 @@ class ProductStoreFactory extends KeyValueDatabaseFactory {
    *   The TimeInterface object that keeps time.
    */
   public function __construct(SerializationInterface $serializer, Connection $connection, TimeInterface $time) {
+    parent::__construct($serializer, $connection);
     $this->serializer = $serializer;
     $this->connection = $connection;
     $this->time = $time;
