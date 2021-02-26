@@ -30,7 +30,7 @@ function amazon_product_widget_schema() {
       'value' => [
         'description' => 'The value of the key/value pair.',
         'type' => 'blob',
-        'not null' => TRUE,
+        'not null' => FALSE,
         'size' => 'big',
       ],
       'overrides' => [
@@ -89,5 +89,12 @@ function amazon_product_widget_update_8002() {
       'overrides',
       $schema
     );
+
+    $database->schema()->changeField('amazon_product_widget_key_value', 'value', 'value', [
+      'description' => 'The value of the key/value pair.',
+      'type' => 'blob',
+      'not null' => FALSE,
+      'size' => 'big',
+    ]);
   }
 }

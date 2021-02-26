@@ -97,7 +97,6 @@ class ProductStore extends DatabaseStorage {
    * @throws \Exception
    */
   public function setOverride($key, array $overrides) {
-    $value = $this->get($key);
     $this->connection->merge($this->table)
       ->keys([
         'name' => $key,
@@ -105,7 +104,6 @@ class ProductStore extends DatabaseStorage {
       ])
       ->fields([
         'overrides' => $this->serializer->encode($overrides),
-        'value' => $this->serializer->encode($value),
       ])
       ->execute();
   }
