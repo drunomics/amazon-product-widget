@@ -643,10 +643,6 @@ class ProductService {
       '#title' => $products_container['title'],
       '#products' => $product_build,
     ];
-    
-    // Call alter hook so users can alter the data.
-    $this->moduleHandler->invokeAll('amazon_product_widget_alter_product_data', [&$products_container, $node, $product_field]);
-
 
     return $build;
   }
