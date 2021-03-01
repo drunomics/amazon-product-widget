@@ -23,6 +23,9 @@ strategy.
       * [Caching and request limits](#caching-and-request-limits)
       * [Permissions](#permissions)
     * [Usage](#usage)
+    * [Overrides](#overrides)
+    * [Commands](#commands)
+    * [Hooks](#hooks)
     * [Maintainers](#maintainers)
 
 ## Features
@@ -162,6 +165,16 @@ Shows the overrides stored for the product with the provided ASIN.
 
 Resets all renewals so that all the products in the database will be considered stale and
 updated on the next cron run.
+
+## Hooks
+
+The module provides one hook:
+
+`hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL)`
+
+It allows modification of product data passed to the product widget template. You would modify the product data
+in the product container. Also passed is the Amazon product field, and lastly the node on which the field is
+being displayed on. This can also be NULL in the case where the field is attached to a taxonomy term.
 
 ## Maintainers
 

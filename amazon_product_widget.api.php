@@ -18,5 +18,5 @@ use Drupal\node\NodeInterface;
  * @param \Drupal\node\NodeInterface $node
  *   The node the product field is bound to. Can be NULL.
  */
-function amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL) {
+function hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL) {
 }
