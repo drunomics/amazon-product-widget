@@ -12,9 +12,11 @@ use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\State\StateInterface;
+use Drupal\node\NodeInterface;
 
 /**
  * Provides amazon product data.
@@ -51,6 +53,13 @@ class ProductService {
    * @var \Drupal\amazon_product_widget\productStore
    */
   protected $productStore;
+
+  /**
+   * Module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
 
   /**
    * Search result store.
@@ -112,14 +121,17 @@ class ProductService {
    *   The queue.
    * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   The module handler.
    */
-  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->searchResultStore = $store_factory->get(ProductStore::COLLECTION_SEARCH_RESULTS);
     $this->state = $state;
     $this->lock = $lock;
     $this->queue = $queue;
     $this->entityTypeManager = $entityTypeManager;
+    $this->moduleHandler = $moduleHandler;
 
     $this->settings = $config->get('amazon_product_widget.settings');
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
@@ -595,12 +607,14 @@ class ProductService {
    *
    * @param AmazonProductField $product_field
    *   Product field.
+   * @param \Drupal\node\NodeInterface|null $node
+   *   Node the product field is on.
    *
    * @return mixed[]
    *   Render array.
    */
-  public function buildProductsWithFallback(AmazonProductField $product_field) {
-    $products_container = $this->getProductsWithFallback($product_field);
+  public function buildProductsWithFallback(AmazonProductField $product_field, NodeInterface $node = NULL) {
+    $products_container = $this->getProductsWithFallback($product_field, $node);
 
     $product_build = [];
     $product_data = !empty($products_container['products']) ? $products_container['products'] : [];
@@ -629,6 +643,10 @@ class ProductService {
       '#title' => $products_container['title'],
       '#products' => $product_build,
     ];
+    
+    // Call alter hook so users can alter the data.
+    $this->moduleHandler->invokeAll('amazon_product_widget_alter_product_data', [&$products_container, $node, $product_field]);
+
 
     return $build;
   }
@@ -638,11 +656,13 @@ class ProductService {
    *
    * @param AmazonProductField $product_field
    *   Product field.
+   * @param \Drupal\node\NodeInterface|null $node
+   *   The node the product field is attached to.
    *
    * @return mixed[]
    *   Data array.
    */
-  public function getProductsWithFallback(AmazonProductField $product_field) {
+  public function getProductsWithFallback(AmazonProductField $product_field, NodeInterface $node = NULL) {
     $asins = $product_field->getAsins();
     $title = $product_field->getTitle();
     $search_terms = $product_field->getSearchTerms();
@@ -737,6 +757,9 @@ class ProductService {
       'title' => (string) $title,
       'products' => $products,
     ];
+
+    // Call alter hook so users can alter the data.
+    $this->moduleHandler->invokeAll('amazon_product_widget_alter_product_data', [&$products_container, $node, $product_field]);
 
     return $products_container;
   }

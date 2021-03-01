@@ -12,7 +12,7 @@
   var loadAmazonWidget = function (field) {
     if (field.innerHTML.trim() === "") {
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', '/api/amazon/product?entity_id=' + field.dataset.entityId + '&entity_type=' + field.dataset.entityType + '&field=' + field.dataset.field, true);
+      xhr.open('GET', '/api/amazon/product?entity_id=' + field.dataset.entityId + '&entity_type=' + field.dataset.entityType + '&field=' + field.dataset.field + '&node_id=' + field.dataset.nodeId, true);
       xhr.onload = function() {
         if (xhr.status === 200) {
           var data = JSON.parse(xhr.response);

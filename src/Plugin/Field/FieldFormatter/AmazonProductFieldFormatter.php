@@ -35,6 +35,7 @@ class AmazonProductFieldFormatter extends FormatterBase {
       return [];
     }
 
+    $node = \Drupal::routeMatch()->getParameter('node');
     $build = [
       '#theme' => 'amazon_product_widget',
       '#attached' => [
@@ -42,6 +43,7 @@ class AmazonProductFieldFormatter extends FormatterBase {
           'amazon_product_widget/amazon_product_widget',
         ],
       ],
+      '#node_id' => $node ? $node->id() : NULL,
       '#entity_id' => $field->getEntity()->id(),
       '#entity_type' => $field->getEntity()->getEntityTypeId(),
       '#bundle' => $field->getEntity()->bundle(),
