@@ -8,6 +8,7 @@ use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,18 +43,29 @@ class AmazonProductController extends ControllerBase {
   protected $settings;
 
   /**
+   * Entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * AmazonProductController constructor.
+   *
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
    * @param \Drupal\Core\Lock\LockBackendInterface $lock
    *   Lock backend.
    * @param \Drupal\Core\Config\ImmutableConfig $settings
    *   Amazon product widget settings.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   Entity type manager.
    */
-  public function __construct(RendererInterface $renderer, LockBackendInterface $lock, ImmutableConfig $settings) {
+  public function __construct(RendererInterface $renderer, LockBackendInterface $lock, ImmutableConfig $settings, EntityTypeManagerInterface $entityTypeManager) {
     $this->renderer = $renderer;
     $this->lock = $lock;
     $this->settings = $settings;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -63,7 +75,8 @@ class AmazonProductController extends ControllerBase {
     return new static(
       $container->get('renderer'),
       $container->get('lock'),
-      $container->get('config.factory')->get('amazon_product_widget.settings')
+      $container->get('config.factory')->get('amazon_product_widget.settings'),
+      $container->get('entity_type.manager')
     );
   }
 
@@ -76,6 +89,7 @@ class AmazonProductController extends ControllerBase {
 
     $entity_id = $request->query->get('entity_id');
     $entity_type = $request->query->get('entity_type');
+    $node_id = $request->query->get('node_id');
     $fieldname = $request->query->get('field');
     $as_json = $request->query->get('json');
 
@@ -89,6 +103,11 @@ class AmazonProductController extends ControllerBase {
     $cacheability = new CacheableMetadata();
     $cacheability->addCacheContexts($cache_contexts);
 
+    $node = NULL;
+    if (!empty($node_id)) {
+      $node = $this->entityTypeManager->getStorage('node')->load($node_id);
+    }
+
     /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
     $storage = $this->entityTypeManager()->getStorage($entity_type);
     if ($entity = $storage->load($entity_id)) {
@@ -98,11 +117,11 @@ class AmazonProductController extends ControllerBase {
         if ($product_field instanceof AmazonProductField) {
           $cacheability = CacheableMetadata::createFromObject($entity)->merge($cacheability);
           if ($as_json) {
-            $content = $this->getProductService()->getProductsWithFallback($product_field);
+            $content = $this->getProductService()->getProductsWithFallback($product_field, $node);
             $count = count($content['products']);
           }
           else {
-            $build = $this->getProductService()->buildProductsWithFallback($product_field);
+            $build = $this->getProductService()->buildProductsWithFallback($product_field, $node);
             $count = count($build['#products']);
             $content = $this->renderer->renderRoot($build);
           }

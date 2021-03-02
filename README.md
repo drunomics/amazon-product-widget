@@ -23,6 +23,9 @@ strategy.
       * [Caching and request limits](#caching-and-request-limits)
       * [Permissions](#permissions)
     * [Usage](#usage)
+    * [Overrides](#overrides)
+    * [Commands](#commands)
+    * [Hooks](#hooks)
     * [Maintainers](#maintainers)
 
 ## Features
@@ -101,6 +104,77 @@ on the item's product information page at Amazon.
 
 Optionally enter search terms which will be used when the products are
 unavailable to list the search results in place of the entered products.
+
+## Overrides
+
+The module allows for overrides to be set for each individual product. This is useful if you
+want to set any custom data to be stored along with product information, like override images,
+title, etc. To set an override, simply use the `'amazon_product_widget.product_service'` service 
+and call the method `setOverrides()`. The argument is an array. Each key should be the product 
+ASIN you are setting the overrides for. The value can be any type.
+
+An example:
+
+```
+$productService = \Drupal::service('amazon_product_widget.product_service');
+$productService->setOverrides([
+    'B00318CA92' => [
+        'additional_info' => 'This is some additional information',
+    ],
+]);
+```
+
+The overrides are now set. You can get them back by calling `getProductData(['B00318CA92'])`
+which will return:
+
+```
+[
+    'B00318CA92' => [
+        'ASIN' => 'B00318CA92',
+        // All other fields filled by Amazon...
+        'overrides' => [
+            'additional_info' => 'This is some additional information',
+        ],
+    ],
+]
+```
+
+## Commands
+
+The module comes with a set of commands which you can use to interact with the modules functionality.
+
+* apw:queue-product-renewal
+
+Queues all products for renewal, this will be done in the next cron run.
+
+* apw:run-product-renewal
+
+Runs the product renewal immediately without waiting for cron. When the request limit is reached,
+this command will stop. To force the command to go through all products until they are all updates,
+use the --force flag.
+
+* apw:stale
+
+Shows the number of stale products (needing updating) that are currently in the database.
+
+* apw:overrides <ASIN>
+
+Shows the overrides stored for the product with the provided ASIN.
+
+* apw:reset-all-renewals
+
+Resets all renewals so that all the products in the database will be considered stale and
+updated on the next cron run.
+
+## Hooks
+
+The module provides one hook:
+
+`hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL)`
+
+It allows modification of product data passed to the product widget template. You would modify the product data
+in the product container. Also passed is the Amazon product field, and lastly the node on which the field is
+being displayed on. This can also be NULL in the case where the field is attached to a taxonomy term.
 
 ## Maintainers
 

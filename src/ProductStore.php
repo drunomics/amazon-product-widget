@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Serialization\SerializationInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Query\Merge;
@@ -27,6 +28,13 @@ class ProductStore extends DatabaseStorage {
   const COLLECTION_SEARCH_RESULTS = 'search_results';
 
   /**
+   * TimeInterface.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface 
+   */
+  protected $time;
+
+  /**
    * Overrides Drupal\Core\KeyValueStore\StorageBase::__construct().
    *
    * @param string $collection
@@ -35,9 +43,12 @@ class ProductStore extends DatabaseStorage {
    *   The serialization class to use.
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection to use.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The TimeInterface object.
    */
-  public function __construct($collection, SerializationInterface $serializer, Connection $connection) {
+  public function __construct($collection, SerializationInterface $serializer, Connection $connection, TimeInterface $time) {
     parent::__construct($collection, $serializer, $connection, 'amazon_product_widget_key_value');
+    $this->time = $time;
   }
 
   /**
@@ -47,7 +58,7 @@ class ProductStore extends DatabaseStorage {
    */
   protected function getNextRenewalTime() {
     // Read the configured renewal time in hours.
-    return time() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_time', 48) * 3600;
+    return $this->time->getRequestTime() + Settings::get('amazon_product_widget.' . $this->getCollectionName() . '.renewal_time', 48) * 3600;
   }
 
   /**
@@ -73,6 +84,75 @@ class ProductStore extends DatabaseStorage {
       ])
       ->fields(['value' => $this->serializer->encode($value), 'renewal' => $renewal])
       ->execute();
+  }
+
+  /**
+   * Sets overrides for the given key.
+   *
+   * @param string $key
+   *   Key.
+   * @param array $overrides
+   *   The overrides.
+   *
+   * @throws \Exception
+   */
+  public function setOverride($key, array $overrides) {
+    $this->connection->merge($this->table)
+      ->keys([
+        'name' => $key,
+        'collection' => $this->collection
+      ])
+      ->fields([
+        'overrides' => $this->serializer->encode($overrides),
+      ])
+      ->execute();
+  }
+
+  /**
+   * Gets overrides for the given ASIN numbers.
+   *
+   * @param array $asins
+   *   The ASINs.
+   *
+   * @return array
+   *   Overrides, keyed by ASIN.
+   */
+  public function getOverrides($asins) {
+    $values = [];
+    try {
+      $result = $this->connection->query('SELECT name, overrides  FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $asins, ':collection' => $this->collection])->fetchAllAssoc('name');
+      foreach ($asins as $asin) {
+        if (isset($result[$asin])) {
+          $values[$asin] = $this->serializer->decode($result[$asin]->overrides);
+        }
+      }
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
+    }
+    return $values;
+  }
+
+  /**
+   * The same as DatabaseStorage::getMultiple() but with our overrides added.
+   *
+   * {@inheritDoc}
+   */
+  public function getMultipleWithOverrides(array $keys) {
+    $values = [];
+    try {
+      $result = $this->connection->query('SELECT name, value, overrides FROM {' . $this->connection->escapeTable($this->table) . '} WHERE name IN ( :keys[] ) AND collection = :collection', [':keys[]' => $keys, ':collection' => $this->collection])->fetchAllAssoc('name');
+      foreach ($keys as $key) {
+        if (isset($result[$key])) {
+          $values[$key] = $this->serializer->decode($result[$key]->value);
+          $values[$key]['overrides'] = $this->serializer->decode($result[$key]->overrides);
+        }
+      }
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
+    }
+    return $values;
   }
 
   /**
@@ -141,10 +221,24 @@ class ProductStore extends DatabaseStorage {
 
     $result = $this->connection->queryRange('SELECT name FROM {' . $this->connection->escapeTable($this->table) . '} WHERE collection = :collection AND renewal < :renewal', 0, $limit, [
       ':collection' => $this->collection,
-      ':renewal' => time(),
+      ':renewal' => $this->time->getRequestTime(),
     ]);
 
     return $result->fetchCol();
+  }
+
+  /**
+   * Gets the number of stale entries in the product database.
+   *
+   * @return int
+   *   The number of stale entries.
+   */
+  public function getOutdatedKeysCount() {
+    $query = $this->connection->select($this->table, 'ta');
+    $query->condition('collection', $this->collection);
+    $query->condition('renewal', $this->time->getRequestTime(), '<');
+    $query->countQuery();
+    return $query->execute()->fetchField();
   }
 
   /**
