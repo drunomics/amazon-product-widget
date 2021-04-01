@@ -86,7 +86,6 @@ class AmazonProductWidgetCommands extends DrushCommands {
    */
   public function updateProductData() {
     $queue = $this->queue->get('amazon_product_widget.product_data_update');
-    repeat:
     if ($this->productService->getProductStore()->hasStaleData()) {
       $this->productService->queueProductRenewal();
 
