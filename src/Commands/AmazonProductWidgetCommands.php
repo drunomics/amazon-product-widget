@@ -67,11 +67,12 @@ class AmazonProductWidgetCommands extends DrushCommands {
     if (!empty($asins)) {
       try {
         $this->productService->queueProductRenewal($asins);
-        $this->io()->note(count($asins) . " have been queued for renewal.");
+        $count = count($asins);
+        $this->output()->writeln("$count products have been queued for renewal.");
       }
       catch (\Exception $exception) {
-        $this->io()->warning("An unrecoverable error has occurred:");
-        $this->io()->warning($exception->getMessage());
+        $this->output()->writeln("An unrecoverable error has occurred:");
+        $this->output()->writeln($exception->getMessage());
       }
     }
   }
@@ -110,10 +111,10 @@ class AmazonProductWidgetCommands extends DrushCommands {
       if ($this->productService->getProductStore()->hasStaleData() && $options['force']) {
         goto repeat;
       }
-      $this->io()->note("All items have been processed.");
+      $this->output()->writeln("All items have been processed.");
     }
     else {
-      $this->io()->note("There is nothing to update.");
+      $this->output()->writeln("There is nothing to update.");
     }
   }
 
@@ -124,7 +125,7 @@ class AmazonProductWidgetCommands extends DrushCommands {
    */
   public function itemsDueForRenewal() {
     $outdated = $this->productService->getProductStore()->getOutdatedKeysCount();
-    $this->io()->note("There are " . $outdated . " products waiting for renewal.");
+    $this->output()->writeln("There are $outdated products waiting for renewal.");
   }
 
   /**
@@ -140,16 +141,16 @@ class AmazonProductWidgetCommands extends DrushCommands {
     try {
       $productData = $this->productService->getProductData([$asin]);
       if (isset($productData[$asin]['overrides'])) {
-        $this->io()->note("The following overrides were found for: $asin");
-        $this->io()->note(var_export($productData[$asin]['overrides'], TRUE));
+        $this->output()->writeln("The following overrides were found for: $asin");
+        $this->output()->writeln(var_export($productData[$asin]['overrides'], TRUE));
       }
       else {
-        $this->io()->warning("No product with ASIN $asin has been found.");
+        $this->output()->writeln("No product with ASIN $asin has been found.");
       }
     }
     catch (\Exception $exception) {
-      $this->io()->warning("An unexpected error has occurred:");
-      $this->io()->warning($exception->getMessage());
+      $this->output()->writeln("An unexpected error has occurred:");
+      $this->output()->writeln($exception->getMessage());
     }
   }
 
@@ -160,5 +161,6 @@ class AmazonProductWidgetCommands extends DrushCommands {
    */
   public function resetAllRenewals() {
     $this->productService->getProductStore()->resetAll();
+    $this->output()->writeln("All products have been marked for renewal.");
   }
 }
