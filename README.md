@@ -150,8 +150,8 @@ Queues all products for renewal, this will be done in the next cron run.
 * apw:run-product-renewal
 
 Runs the product renewal immediately without waiting for cron. When the request limit is reached,
-this command will stop. To force the command to go through all products until they are all updates,
-use the --force flag.
+this command will stop and show the number of products still waiting for renewal. You can run it
+multiple times to update all products.
 
 * apw:stale
 
