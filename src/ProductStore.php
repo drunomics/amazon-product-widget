@@ -237,8 +237,7 @@ class ProductStore extends DatabaseStorage {
     $query = $this->connection->select($this->table, 'ta');
     $query->condition('collection', $this->collection);
     $query->condition('renewal', $this->time->getRequestTime(), '<');
-    $query->countQuery();
-    return $query->execute()->fetchField();
+    return $query->countQuery()->execute()->fetchField();
   }
 
   /**
