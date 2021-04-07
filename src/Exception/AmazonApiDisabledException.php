@@ -5,7 +5,7 @@ namespace Drupal\amazon_product_widget\Exception;
 use Throwable;
 
 /**
- * Amazon API request limit reached.
+ * Amazon API disabled.
  */
 class AmazonApiDisabledException extends AmazonServiceException {
 
