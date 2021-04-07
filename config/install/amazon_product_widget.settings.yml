@@ -5,4 +5,4 @@ call_to_action_text: Buy
 price_decimal_separator: '.'
 price_thousand_separator: ''
 fill_up_with_fallback: 0
-amazon_api_disabled: false
+amazon_api_disabled: 0

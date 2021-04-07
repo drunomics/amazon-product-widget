@@ -132,7 +132,7 @@ class AmazonProductController extends ControllerBase {
     // Max age for the response will be set in the event subscriber.
     // @see \Drupal\amazon_product_widget\EventSubscriber\AmazonApiSubscriber::onRespond()
     $max_age = $this->settings->get('render_max_age');
-    $max_age = !empty($max_age) ? $max_age : 3600;
+    $max_age = !is_null($max_age) ? $max_age : 3600;
     $cacheability->setCacheMaxAge($max_age);
 
     $response = new CacheableJsonResponse();

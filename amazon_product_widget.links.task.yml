@@ -1,13 +1,12 @@
 amazon_product_widget.settings_form:
-  title: 'Amazon Product Widget'
+  title: 'Settings'
   route_name: amazon_product_widget.settings_form
   description: 'Amazon Product Widget settings'
-  parent: system.admin_config_services
-  weight: 99
+  base_route: amazon_product_widget.settings_form
+  weight: -1
 
 amazon_product_widget.product_renewal:
   title: 'Amazon Product Renewal'
   route_name: amazon_product_widget.product_renewal
   description: 'Renew cached amazon product data.'
-  parent: amazon_product_widget.settings_form
-  weight: 100
+  base_route: amazon_product_widget.product_renewal
