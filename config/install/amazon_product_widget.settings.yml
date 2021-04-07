@@ -1,8 +1,8 @@
 max_requests_per_day: 8640
 max_requests_per_second: 1
 render_max_age: 3600
-call_to_action_text: Buy
+call_to_action_text: 'Buy'
 price_decimal_separator: '.'
 price_thousand_separator: ''
-fill_up_with_fallback: 0
-amazon_api_disabled: 0
+fill_up_with_fallback: false
+amazon_api_disabled: false
