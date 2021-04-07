@@ -50,6 +50,10 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'product_available' => FALSE,
         'is_eligible_for_prime' => FALSE,
         'overrides' => [],
+        'customer_reviews' => [
+          'count' => 0,
+          'star_rating' => 0,
+        ],
       ],
     ],
   ];
