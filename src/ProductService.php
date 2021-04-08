@@ -194,6 +194,11 @@ class ProductService {
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
     $asins = array_filter($asins);
+
+    if (empty($asins)) {
+      return [];
+    }
+
     $product_data = [];
 
     if ($renew) {
