@@ -19,6 +19,10 @@
       {% if is_eligible_for_prime %}
         <div class="amazon-product__prime"></div>
       {% endif %}
+      {% if customer_reviews.count %}
+        <div class="amazon-product__customer-reviews__count">{{ customer_reviews.count }}</div>
+        <div class="amazon-product__customer-reviews__star_rating">{{ customer_reviews.star_rating }}</div>
+      {% endif %}
     </header>
     <a class="amazon-product__link" target="_blank" rel="noopener nofollow" href="{{ url }}">
       <span class="amazon-product__link__icon"></span>

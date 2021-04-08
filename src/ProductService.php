@@ -412,6 +412,8 @@ class ProductService {
       GetItemsResource::ITEM_INFOTITLE,
       GetItemsResource::OFFERSLISTINGSPRICE,
       GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
+      GetItemsResource::CUSTOMER_REVIEWSCOUNT,
+      GetItemsResource::CUSTOMER_REVIEWSSTAR_RATING,
     ];
 
     $partner_tag = AmazonPaapi::getPartnerTag();
@@ -441,6 +443,10 @@ class ProductService {
           'manufacturer' => NULL,
           'product_available' => FALSE,
           'is_eligible_for_prime' => FALSE,
+          'customer_reviews' => [
+            'count' => 0,
+            'star_rating' => 0,
+          ],
         ];
 
         if ($item->getDetailPageURL()) {
@@ -497,6 +503,14 @@ class ProductService {
             ];
           }
         }
+
+        if ($customer_reviews = $item->getCustomerReviews()) {
+          $item_data['customer_reviews'] = [
+            'count' => $customer_reviews->getCount(),
+            'star_rating' => $customer_reviews->getStarRating()->getValue(),
+          ];
+        }
+
         $amazon_data[$item->getASIN()] = $item_data;
       }
     }
@@ -661,6 +675,7 @@ class ProductService {
         '#suggested_price' => $data['suggested_price'],
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
         '#overrides' => $data['overrides'],
+        '#customer_reviews' => $data['customer_reviews'],
       ];
     }
 
@@ -755,6 +770,11 @@ class ProductService {
       'Width' => NULL,
     ];
 
+    $customer_reviews_defaults = [
+      'count' => 0,
+      'star_rating' => 0,
+    ];
+
     $products = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
@@ -772,6 +792,7 @@ class ProductService {
         'suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
         'overrides' => $data['overrides'],
+        'customer_reviews' => $data['customer_reviews'] ?? $customer_reviews_defaults,
       ];
     }
 
