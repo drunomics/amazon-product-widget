@@ -6,7 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
- * Configure Amazon PA API for this site.
+ * Configure Amazon Product Widget for this site.
  */
 class SettingsForm extends ConfigFormBase {
 
