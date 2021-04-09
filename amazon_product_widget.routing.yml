@@ -1,3 +1,13 @@
+amazon_product_widget.settings_form:
+  path: '/admin/config/services/amazon-product-widget/settings'
+  defaults:
+    _form: '\Drupal\amazon_product_widget\Form\SettingsForm'
+    _title: 'Amazon Product Widget Settings'
+  requirements:
+    _permission: 'administer amazon product widget'
+  options:
+    _admin_route: TRUE
+
 amazon_product_widget.product_api:
   path: '/api/amazon/product'
   defaults:
@@ -7,7 +17,7 @@ amazon_product_widget.product_api:
     _access: 'TRUE'
 
 amazon_product_widget.product_renewal:
-  path: '/admin/config/services/amazon/product-renewal'
+  path: '/admin/config/services/amazon-product-widget/product-renewal'
   defaults:
     _title: 'Amazon Product Renewal'
     _form: 'Drupal\amazon_product_widget\Form\ProductRenewalForm'

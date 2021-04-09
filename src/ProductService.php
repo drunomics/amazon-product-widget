@@ -8,6 +8,7 @@ use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\PartnerType;
 use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\SearchItemsRequest;
 use Drupal\amazon_paapi\AmazonPaapi;
 use Drupal\amazon_paapi\AmazonPaapiTrait;
+use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -93,6 +94,13 @@ class ProductService {
   protected $queue;
 
   /**
+   * Amazon Api endpoint will not be used.
+   *
+   * @var bool
+   */
+  protected $amazonApiDisabled;
+
+  /**
    * Maximum allowed requests per day (Amazon throttling).
    *
    * @var int
@@ -134,6 +142,7 @@ class ProductService {
     $this->moduleHandler = $moduleHandler;
 
     $this->settings = $config->get('amazon_product_widget.settings');
+    $this->amazonApiDisabled = $config->get('amazon_product_widget.settings')->get('amazon_api_disabled');
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
 
@@ -179,6 +188,7 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function getProductData(array $asins, $renew = FALSE) {
@@ -219,6 +229,7 @@ class ProductService {
    *   An array of ASIN-numbers which are the top result for that search, with
    *   the first item in the array being the top result.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function getSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT, $renew = FALSE) {
@@ -285,9 +296,14 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   protected function fetchAmazonProducts(array $asins) {
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     $asins = array_unique($asins);
     $product_data = [];
 
@@ -362,6 +378,7 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    * @throws \Amazon\ProductAdvertisingAPI\v1\ApiException
    */
@@ -370,8 +387,12 @@ class ProductService {
       return [];
     }
 
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
-      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+      throw new AmazonRequestLimitReachedException();
     }
 
     $amazon_data = [];
@@ -494,11 +515,16 @@ class ProductService {
    * @return string[]
    *   An array of ASIN-numbers which are the top result for that search.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
-      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+      throw new AmazonRequestLimitReachedException();
     }
 
     if (!$this->lock->acquire(__CLASS__)) {

@@ -1,0 +1,28 @@
+amazon_product_widget.settings:
+  type: config_object
+  label: 'Amazon product widget settings'
+  mapping:
+    max_requests_per_day:
+      type: integer
+      label: Max requests per day
+    max_requests_per_second:
+      type: integer
+      label: Max requests per second
+    render_max_age:
+      type: integer
+      label: Render max age
+    call_to_action_text:
+      type: string
+      label: Call to action text
+    price_decimal_separator:
+      type: string
+      label: Price decimal separator
+    price_thousand_separator:
+      type: string
+      label: Price thousand separator
+    fill_up_with_fallback:
+      type: boolean
+      label: Fill up with fallback search term
+    amazon_api_disabled:
+      type: boolean
+      label: Disable Amazon API
