@@ -105,9 +105,9 @@ class AmazonApiSubscriber implements EventSubscriberInterface {
         $max_age = $response->getCacheableMetadata()->getCacheMaxAge();
       }
 
-      if (empty($max_age)) {
+      if (!isset($max_age)) {
         $max_age = $this->settings->get('render_max_age');
-        $max_age = !empty($max_age) ? $max_age : 3600;
+        $max_age = !is_null($max_age) ? $max_age : 3600;
       }
 
       $response->setMaxAge($max_age);

@@ -8,13 +8,16 @@ use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\PartnerType;
 use Amazon\ProductAdvertisingAPI\v1\com\amazon\paapi5\v1\SearchItemsRequest;
 use Drupal\amazon_paapi\AmazonPaapi;
 use Drupal\amazon_paapi\AmazonPaapiTrait;
+use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\State\StateInterface;
+use Drupal\node\NodeInterface;
 
 /**
  * Provides amazon product data.
@@ -53,6 +56,13 @@ class ProductService {
   protected $productStore;
 
   /**
+   * Module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * Search result store.
    *
    * Key value store with a hashed search term string as key and a list of
@@ -84,6 +94,13 @@ class ProductService {
   protected $queue;
 
   /**
+   * Amazon Api endpoint will not be used.
+   *
+   * @var bool
+   */
+  protected $amazonApiDisabled;
+
+  /**
    * Maximum allowed requests per day (Amazon throttling).
    *
    * @var int
@@ -112,16 +129,20 @@ class ProductService {
    *   The queue.
    * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   The module handler.
    */
-  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->searchResultStore = $store_factory->get(ProductStore::COLLECTION_SEARCH_RESULTS);
     $this->state = $state;
     $this->lock = $lock;
     $this->queue = $queue;
     $this->entityTypeManager = $entityTypeManager;
+    $this->moduleHandler = $moduleHandler;
 
     $this->settings = $config->get('amazon_product_widget.settings');
+    $this->amazonApiDisabled = $config->get('amazon_product_widget.settings')->get('amazon_api_disabled');
     $this->maxRequestPerDay = $config->get('amazon_product_widget.settings')->get('max_requests_per_day');
     $this->maxRequestPerSecond = $config->get('amazon_product_widget.settings')->get('max_requests_per_second');
 
@@ -167,11 +188,17 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function getProductData(array $asins, $renew = FALSE) {
     $asins = array_unique($asins);
     $asins = array_filter($asins);
+
+    if (empty($asins)) {
+      return [];
+    }
+
     $product_data = [];
 
     if ($renew) {
@@ -179,7 +206,7 @@ class ProductService {
     }
     else {
       // Fetch data from the cache first.
-      $product_data = $this->productStore->getMultiple($asins);
+      $product_data = $this->productStore->getMultipleWithOverrides($asins);
       $fetch_asins = array_diff($asins, array_keys($product_data));
     }
 
@@ -207,6 +234,7 @@ class ProductService {
    *   An array of ASIN-numbers which are the top result for that search, with
    *   the first item in the array being the top result.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function getSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT, $renew = FALSE) {
@@ -273,9 +301,14 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   protected function fetchAmazonProducts(array $asins) {
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     $asins = array_unique($asins);
     $product_data = [];
 
@@ -350,6 +383,7 @@ class ProductService {
    *   Associative array with ASIN-number as key, and product data as values.
    *   If no data was retrieved for an ASIN, then the value is FALSE.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    * @throws \Amazon\ProductAdvertisingAPI\v1\ApiException
    */
@@ -358,8 +392,12 @@ class ProductService {
       return [];
     }
 
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
-      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+      throw new AmazonRequestLimitReachedException();
     }
 
     $amazon_data = [];
@@ -379,6 +417,8 @@ class ProductService {
       GetItemsResource::ITEM_INFOTITLE,
       GetItemsResource::OFFERSLISTINGSPRICE,
       GetItemsResource::OFFERSLISTINGSDELIVERY_INFOIS_PRIME_ELIGIBLE,
+      GetItemsResource::CUSTOMER_REVIEWSCOUNT,
+      GetItemsResource::CUSTOMER_REVIEWSSTAR_RATING,
     ];
 
     $partner_tag = AmazonPaapi::getPartnerTag();
@@ -408,6 +448,10 @@ class ProductService {
           'manufacturer' => NULL,
           'product_available' => FALSE,
           'is_eligible_for_prime' => FALSE,
+          'customer_reviews' => [
+            'count' => 0,
+            'star_rating' => 0,
+          ],
         ];
 
         if ($item->getDetailPageURL()) {
@@ -464,6 +508,14 @@ class ProductService {
             ];
           }
         }
+
+        if ($customer_reviews = $item->getCustomerReviews()) {
+          $item_data['customer_reviews'] = [
+            'count' => $customer_reviews->getCount(),
+            'star_rating' => $customer_reviews->getStarRating()->getValue(),
+          ];
+        }
+
         $amazon_data[$item->getASIN()] = $item_data;
       }
     }
@@ -482,11 +534,16 @@ class ProductService {
    * @return string[]
    *   An array of ASIN-numbers which are the top result for that search.
    *
+   * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
   public function fetchAmazonSearchResults($search_terms, $category = ProductService::AMAZON_CATEGORY_DEFAULT) {
+    if ($this->amazonApiDisabled) {
+      throw new AmazonApiDisabledException();
+    }
+
     if ($this->getTodaysRequestCount() >= $this->getMaxRequestsPerDay()) {
-      throw new AmazonRequestLimitReachedException('Maximum number of requests per day to Amazon API reached.');
+      throw new AmazonRequestLimitReachedException();
     }
 
     if (!$this->lock->acquire(__CLASS__)) {
@@ -595,12 +652,14 @@ class ProductService {
    *
    * @param AmazonProductField $product_field
    *   Product field.
+   * @param \Drupal\node\NodeInterface|null $node
+   *   Node the product field is on.
    *
    * @return mixed[]
    *   Render array.
    */
-  public function buildProductsWithFallback(AmazonProductField $product_field) {
-    $products_container = $this->getProductsWithFallback($product_field);
+  public function buildProductsWithFallback(AmazonProductField $product_field, NodeInterface $node = NULL) {
+    $products_container = $this->getProductsWithFallback($product_field, $node);
 
     $product_build = [];
     $product_data = !empty($products_container['products']) ? $products_container['products'] : [];
@@ -608,6 +667,7 @@ class ProductService {
     foreach ($product_data as $data) {
       $product_build[] = [
         '#theme' => 'amazon_product_widget_product',
+        '#asin' => $data['asin'],
         '#medium_image' => $data['medium_image'],
         '#large_image' => $data['large_image'],
         '#name' => $data['name'],
@@ -619,6 +679,8 @@ class ProductService {
         '#price' => $data['price'],
         '#suggested_price' => $data['suggested_price'],
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
+        '#overrides' => $data['overrides'],
+        '#customer_reviews' => $data['customer_reviews'],
       ];
     }
 
@@ -636,11 +698,13 @@ class ProductService {
    *
    * @param AmazonProductField $product_field
    *   Product field.
+   * @param \Drupal\node\NodeInterface|null $node
+   *   The node the product field is attached to.
    *
    * @return mixed[]
    *   Data array.
    */
-  public function getProductsWithFallback(AmazonProductField $product_field) {
+  public function getProductsWithFallback(AmazonProductField $product_field, NodeInterface $node = NULL) {
     $asins = $product_field->getAsins();
     $title = $product_field->getTitle();
     $search_terms = $product_field->getSearchTerms();
@@ -711,12 +775,18 @@ class ProductService {
       'Width' => NULL,
     ];
 
+    $customer_reviews_defaults = [
+      'count' => 0,
+      'star_rating' => 0,
+    ];
+
     $products = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
       $products[] = [
         'medium_image' => $data['medium_image'] + $image_defaults,
         'large_image' => $data['large_image'] + $image_defaults,
+        'asin' => $data['ASIN'],
         'name' => $data['title'],
         'title' => $data['title'],
         'url' => $data['url'],
@@ -726,6 +796,8 @@ class ProductService {
         'price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
+        'overrides' => $data['overrides'],
+        'customer_reviews' => $data['customer_reviews'] ?? $customer_reviews_defaults,
       ];
     }
 
@@ -733,6 +805,9 @@ class ProductService {
       'title' => (string) $title,
       'products' => $products,
     ];
+
+    // Call alter hook so users can alter the data.
+    $this->moduleHandler->invokeAll('amazon_product_widget_alter_product_data', [&$products_container, $product_field, $node]);
 
     return $products_container;
   }
@@ -755,6 +830,20 @@ class ProductService {
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Sets overrides for the given ASIN keys.
+   *
+   * @param array $overrides
+   *   Overrides, keyed by ASIN.
+   *
+   * @throws \Exception
+   */
+  public function setOverrides(array $overrides) {
+    foreach ($overrides as $key => $override) {
+      $this->productStore->setOverride($key, $override);
+    }
   }
 
 }

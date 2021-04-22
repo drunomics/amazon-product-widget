@@ -15,6 +15,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'label' => '',
         'entity_id' => '',
         'entity_type' => '',
+        'node_id' => '',
         'field' => '',
         'products' => [],
       ],
@@ -37,6 +38,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
           'Height' => NULL,
           'Width' => NULL,
         ],
+        'asin' => '',
         'name' => '',
         'title' => '',
         'url' => '',
@@ -47,6 +49,11 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'suggested_price' => '',
         'product_available' => FALSE,
         'is_eligible_for_prime' => FALSE,
+        'overrides' => [],
+        'customer_reviews' => [
+          'count' => 0,
+          'star_rating' => 0,
+        ],
       ],
     ],
   ];
