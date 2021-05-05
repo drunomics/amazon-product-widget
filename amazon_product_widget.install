@@ -52,6 +52,65 @@ function amazon_product_widget_schema() {
     ],
   ];
 
+  $schema['amazon_product_widget_deal_feed'] = [
+    'description' => 'Stores Amazon deal information.',
+    'fields' => [
+      'asin' => [
+        'description' => 'Which ASIN this deal relates to.',
+        'type' => 'varchar_ascii',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+
+      'created' => [
+        'description' => 'UNIX timestamp when this deal was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+
+      'updated' => [
+        'description' => 'UNIX timestamp when this deal was updated.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+
+      'deal_start' => [
+        'description' => 'UNIX timestamp when this deal starts.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+
+      'deal_end' => [
+        'description' => 'UNIX timestamp when this deal ends..',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+
+      'deal_price' => [
+        'description' => 'Deal price.',
+        'type' => 'numeric',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => TRUE,
+      ],
+
+      'deal_status' => [
+        'description' => 'Represents the status of the deal.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'default' => 0,
+      ],
+    ],
+  ];
+
   return $schema;
 }
 
@@ -96,5 +155,15 @@ function amazon_product_widget_update_8002() {
       'not null' => FALSE,
       'size' => 'big',
     ]);
+  }
+}
+
+/**
+ * Create 'amazon_product_widget_deal_feed' database table.
+ */
+function amazon_product_widget_update_8003() {
+  $database = \Drupal::database();
+  if (!$database->schema()->tableExists('amazon_product_widget_deal_feed')) {
+    drupal_install_schema('amazon_product_widget');
   }
 }
