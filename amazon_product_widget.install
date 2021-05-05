@@ -100,6 +100,8 @@ function amazon_product_widget_schema() {
         'not null' => TRUE,
         'default' => 0,
         'unsigned' => TRUE,
+        'precision' => 5,
+        'scale' => 2,
       ],
 
       'deal_status' => [
@@ -108,6 +110,10 @@ function amazon_product_widget_schema() {
         'size' => 'tiny',
         'default' => 0,
       ],
+    ],
+    'primary key' => ['asin'],
+    'indexes' => [
+      'asin' => ['asin'],
     ],
   ];
 
@@ -119,6 +125,7 @@ function amazon_product_widget_schema() {
  */
 function amazon_product_widget_uninstall() {
   \Drupal::configFactory()->getEditable('amazon_product_widget.settings')->delete();
+  \Drupal::configFactory()->getEditable('amazon_product_widget.deal_settings')->delete();
 }
 
 /**
