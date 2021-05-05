@@ -87,7 +87,7 @@ function amazon_product_widget_schema() {
       ],
 
       'deal_end' => [
-        'description' => 'UNIX timestamp when this deal ends..',
+        'description' => 'UNIX timestamp when this deal ends.',
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
