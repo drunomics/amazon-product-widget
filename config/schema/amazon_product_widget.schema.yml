@@ -26,3 +26,20 @@ amazon_product_widget.settings:
     amazon_api_disabled:
       type: boolean
       label: Disable Amazon API
+
+amazon_product_widget.deal_settings:
+  type: config_object
+  label: 'Amazon product widget Deal Feed settings'
+  mapping:
+    deal_feed_url:
+      type: string
+      label: Deal Feed URL
+    deal_feed_username:
+      type: string
+      label: Deal Feed username
+    deal_feed_password:
+      type: string
+      label: Deal Feed password
+    deal_feed_active:
+      type: boolean
+      label: Activate Deal Feed
