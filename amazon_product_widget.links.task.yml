@@ -9,4 +9,10 @@ amazon_product_widget.product_renewal:
   title: 'Amazon Product Renewal'
   route_name: amazon_product_widget.product_renewal
   description: 'Renew cached amazon product data.'
-  base_route: amazon_product_widget.product_renewal
+  base_route: amazon_product_widget.settings_form
+
+amazon_product_widget.deal_feed_settings_form:
+  title: 'Deal Feed'
+  route_name: amazon_product_widget.deal_feed_settings_form
+  description: 'Renew cached amazon product data.'
+  base_route: amazon_product_widget.settings_form
