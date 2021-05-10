@@ -171,6 +171,15 @@ class DealStore {
     }
   }
 
+  /**
+   * Converts a deal status into a human readable string.
+   *
+   * @param int $status
+   *   The status as returned by the deal store.
+   *
+   * @return string
+   *   The status in human readable form.
+   */
   public function statusToString(int $status) {
     switch ($status) {
       case DealStore::DEAL_STATUS_AVAILABLE:
@@ -181,6 +190,28 @@ class DealStore {
 
       default:
         return 'UNKNOWN';
+    }
+  }
+
+  /**
+   * Converts the deal status from a string to a numeric value.
+   *
+   * @param string $status
+   *   The deal status as returned by Amazon.
+   *
+   * @return int
+   *   The numeric value.
+   */
+  public function statusToNumber(string $status) {
+    switch ($status) {
+      case 'AVAILABLE':
+        return DealStore::DEAL_STATUS_AVAILABLE;
+
+      case 'UPCOMING':
+        return DealStore::DEAL_STATUS_UPCOMING;
+
+      default:
+        return DealStore::DEAL_STATUS_UNKNOWN;
     }
   }
 

@@ -165,7 +165,7 @@ class DealFeedService {
 
       $dealStart = $this->dateToLocalTimestamp($row[self::DEAL_KEY_START]);
       $dealEnd   = $this->dateToLocalTimestamp($row[self::DEAL_KEY_END]);
-      $status    = $this->convertDealStatus($row[self::DEAL_KEY_STATUS]);
+      $status    = $this->dealStore->statusToNumber($row[self::DEAL_KEY_STATUS]);
       $asin      = $row[self::DEAL_KEY_ASIN];
       $price     = $row[self::DEAL_KEY_PRICE];
 
@@ -380,28 +380,6 @@ class DealFeedService {
     }
     catch (\Exception $exception) {
       return NULL;
-    }
-  }
-
-  /**
-   * Converts the deal state from a string to a numeric value.
-   *
-   * @param string $state
-   *   The deal state as returned by Amazon.
-   *
-   * @return int
-   *   The numeric value.
-   */
-  protected function convertDealStatus(string $state) {
-    switch ($state) {
-      case 'AVAILABLE':
-        return DealStore::DEAL_STATUS_AVAILABLE;
-
-      case 'UPCOMING':
-        return DealStore::DEAL_STATUS_UPCOMING;
-
-      default:
-        return DealStore::DEAL_STATUS_UNKNOWN;
     }
   }
 
