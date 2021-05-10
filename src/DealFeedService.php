@@ -106,16 +106,16 @@ class DealFeedService {
    * @param string $asin
    *   The ASIN.
    *
-   * @return float|null
-   *   Returns the deal price for that product, NULL if no deal available.
+   * @return array
+   *   Returns the deal row from the store, returns empty array if no deal found.
    */
   public function get(string $asin) {
-    $deal = $this->dealStore->get($asin);
-    if (count($deal)) {
-      return $deal['deal_price'];
-    }
+    $active = $this->settings->get(DealFeedSettingsForm::SETTINGS_DEAL_FEED_ACTIVE);
 
-    return NULL;
+    if ($active) {
+      return $this->dealStore->get($asin);
+    }
+    return [];
   }
 
   /**

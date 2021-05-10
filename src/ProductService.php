@@ -796,7 +796,7 @@ class ProductService {
 
       // If a deal is active, the correct price should be shown.
       $deal = $this->dealService->get($data['ASIN']);
-      if ($deal && isset($deal['deal_price'])) {
+      if (!empty($deal) && isset($deal['deal_price'])) {
         $data['price'] = $deal['deal_price'];
       }
 

@@ -87,7 +87,7 @@ class DealStore {
    */
   public function get(string $asin) {
     $requestTime = $this->time->getRequestTime();
-    return $this->connection->select(self::TABLE, 'ta')
+    $deal = $this->connection->select(self::TABLE, 'ta')
       ->fields('ta', ['deal_price'])
       ->condition('asin', $asin)
       ->condition('deal_start', $requestTime, '>=')
@@ -95,6 +95,11 @@ class DealStore {
       ->condition('deal_status', self::DEAL_STATUS_AVAILABLE)
       ->execute()
       ->fetchAssoc();
+
+    if ($deal) {
+      return $deal;
+    }
+    return [];
   }
 
   /**
@@ -107,11 +112,16 @@ class DealStore {
    *   The deal information.
    */
   public function getByAsin(string $asin) {
-    return $this->connection->select(self::TABLE, 'ta')
+    $deal = $this->connection->select(self::TABLE, 'ta')
       ->fields('ta')
       ->condition('asin', $asin)
       ->execute()
       ->fetchAssoc();
+
+    if ($deal) {
+      return $deal;
+    }
+    return [];
   }
 
   /**
