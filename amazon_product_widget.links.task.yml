@@ -16,3 +16,9 @@ amazon_product_widget.deal_feed_settings_form:
   route_name: amazon_product_widget.deal_feed_settings_form
   description: 'Renew cached amazon product data.'
   base_route: amazon_product_widget.settings_form
+
+amazon_product_widget.deal_feed_check_form:
+  title: 'Deal Check'
+  route_name: amazon_product_widget.deal_feed_check_form
+  description: 'Check deal status of a product.'
+  base_route: amazon_product_widget.settings_form

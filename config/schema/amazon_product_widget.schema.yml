@@ -31,6 +31,12 @@ amazon_product_widget.deal_settings:
   type: config_object
   label: 'Amazon product widget Deal Feed settings'
   mapping:
+    max_csv_processing_time:
+      type: integer
+      label: Max CSV processing time
+    deal_cron_interval:
+      type: integer
+      label: Deal cron interval
     deal_feed_url:
       type: string
       label: Deal Feed URL

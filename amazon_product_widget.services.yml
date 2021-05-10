@@ -14,7 +14,13 @@ services:
     arguments: ['@serialization.phpserialize', '@database', '@datetime.time']
   amazon_product_widget.product_service:
     class: Drupal\amazon_product_widget\ProductService
-    arguments: ['@amazon_product_widget.product_store_factory', '@state', '@lock', '@config.factory', '@amazon_product_widget.queue_factory', '@entity_type.manager', '@module_handler']
+    arguments: ['@amazon_product_widget.product_store_factory', '@state', '@lock', '@config.factory', '@amazon_product_widget.queue_factory', '@entity_type.manager', '@module_handler', '@amazon_product_widget.deal_feed_service']
+  amazon_product_widget.deal_feed_service:
+    class: Drupal\amazon_product_widget\DealFeedService
+    arguments: ['@config.factory', '@http_client', '@file_system', '@amazon_product_widget.deal_store', '@lock']
+  amazon_product_widget.deal_store:
+    class: Drupal\amazon_product_widget\DealStore
+    arguments: ['@database', '@datetime.time']
   amazon_product_widget.queue_factory:
     class: Drupal\Core\Queue\QueueInterface
     factory: queue:get

@@ -33,3 +33,13 @@ amazon_product_widget.deal_feed_settings_form:
     _permission: 'administer amazon product widget'
   options:
     _admin_route: TRUE
+
+amazon_product_widget.deal_feed_check_form:
+  path: '/admin/config/services/amazon-product-widget/deal-check'
+  defaults:
+    _title: 'Amazon Deal Feed'
+    _form: 'Drupal\amazon_product_widget\Form\DealFeedCheckForm'
+  requirements:
+    _permission: 'administer amazon product widget'
+  options:
+    _admin_route: TRUE

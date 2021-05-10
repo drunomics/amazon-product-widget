@@ -100,8 +100,8 @@ function amazon_product_widget_schema() {
         'not null' => TRUE,
         'default' => 0,
         'unsigned' => TRUE,
-        'precision' => 5,
-        'scale' => 2,
+        'precision' => 10,
+        'scale' => 4,
       ],
 
       'deal_status' => [
@@ -170,7 +170,8 @@ function amazon_product_widget_update_8002() {
  */
 function amazon_product_widget_update_8003() {
   $database = \Drupal::database();
+  $schema = amazon_product_widget_schema();
   if (!$database->schema()->tableExists('amazon_product_widget_deal_feed')) {
-    drupal_install_schema('amazon_product_widget');
+    $database->schema()->createTable('amazon_product_widget_deal_feed', $schema['amazon_product_widget_deal_feed']);
   }
 }

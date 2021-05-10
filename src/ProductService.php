@@ -115,6 +115,13 @@ class ProductService {
   protected $maxRequestPerSecond;
 
   /**
+   * The deal feed service.
+   *
+   * @var \Drupal\amazon_product_widget\DealFeedService
+   */
+  protected $dealService;
+
+  /**
    * ProductService constructor.
    *
    * @param \Drupal\amazon_product_widget\ProductStoreFactory $store_factory
@@ -131,8 +138,10 @@ class ProductService {
    *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler.
+   * @param \Drupal\amazon_product_widget\DealFeedService $dealService
+   *   Deal feed service.
    */
-  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler, DealFeedService $dealService) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->searchResultStore = $store_factory->get(ProductStore::COLLECTION_SEARCH_RESULTS);
     $this->state = $state;
@@ -140,6 +149,7 @@ class ProductService {
     $this->queue = $queue;
     $this->entityTypeManager = $entityTypeManager;
     $this->moduleHandler = $moduleHandler;
+    $this->dealService = $dealService;
 
     $this->settings = $config->get('amazon_product_widget.settings');
     $this->amazonApiDisabled = $config->get('amazon_product_widget.settings')->get('amazon_api_disabled');
@@ -783,6 +793,13 @@ class ProductService {
     $products = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
+
+      // If a deal is active, the correct price should be shown.
+      $deal = $this->dealService->get($data['ASIN']);
+      if ($deal && isset($deal['deal_price'])) {
+        $data['price'] = $deal['deal_price'];
+      }
+
       $products[] = [
         'medium_image' => $data['medium_image'] + $image_defaults,
         'large_image' => $data['large_image'] + $image_defaults,
