@@ -20,6 +20,7 @@ strategy.
     * [Configuration](#configuration)
       * [Amazon settings configuration](#amazon-settings-configuration)
       * [Amazon product widget configuration](#amazon-product-widget-configuration)
+      * [Deals configuration](#deals-configuration)
       * [Caching and request limits](#caching-and-request-limits)
       * [Permissions](#permissions)
     * [Usage](#usage)
@@ -77,8 +78,19 @@ Set the following `amazon_product_widget.settings` configuration:
 Add the `Amazon product widget` field to a node or paragraph and configure
 form & display.
 
-### Amazon product widget deals configuration
+### Deals configuration
 
+Set the following `amazon_product_widget.deal_settings` configuration:
+
+  * `max_csv_processing_time` - maximum processing time (in seconds) that a chunk of the Deals
+    CSV will be processed. (default: 30)
+
+  * `deal_feed_url` - Deal Feed URL: this must point to the Deal file that Amazon provides.
+  * `deal_feed_username` - Deal Feed username that Amazon provided.
+  * `deal_feed_password` - Deal Feed password that Amazon provided.
+  * `deal_feed_activated` - Whether the Deal Feed is active i.e. prices are taken from deals
+    if available. (default: false)
+  * `deal_cron_interval` - Interval at which the deals will be updated in minutes. (default: 1440)
 
 ### Caching and request limits
 
