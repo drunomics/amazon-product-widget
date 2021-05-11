@@ -113,7 +113,10 @@ function amazon_product_widget_schema() {
     ],
     'primary key' => ['asin'],
     'indexes' => [
-      'asin' => ['asin'],
+      'asin_status' => [
+        'asin',
+        'deal_status',
+      ],
     ],
   ];
 
