@@ -24,11 +24,11 @@ class DealFeedSettingsForm extends ConfigFormBase {
    * Settings in 'amazon_product_widget.deal_settings'.
    */
   const SETTINGS_MAX_CSV_PROCESSING_TIME = 'max_csv_processing_time';
-  const SETTINGS_DEAL_CRON_INTERVAL = 'deal_cron_interval';
-  const SETTINGS_DEAL_FEED_URL = 'deal_feed_url';
-  const SETTINGS_DEAL_FEED_USERNAME = 'deal_feed_username';
-  const SETTINGS_DEAL_FEED_PASSWORD = 'deal_feed_password';
-  const SETTINGS_DEAL_FEED_ACTIVE = 'deal_feed_active';
+  const SETTINGS_DEAL_CRON_INTERVAL      = 'deal_cron_interval';
+  const SETTINGS_DEAL_FEED_URL           = 'deal_feed_url';
+  const SETTINGS_DEAL_FEED_USERNAME      = 'deal_feed_username';
+  const SETTINGS_DEAL_FEED_PASSWORD      = 'deal_feed_password';
+  const SETTINGS_DEAL_FEED_ACTIVE        = 'deal_feed_active';
 
   /**
    * The Deal Feed service.
@@ -171,6 +171,9 @@ class DealFeedSettingsForm extends ConfigFormBase {
     return parent::buildForm($form, $form_state);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     $triggering = $form_state->getTriggeringElement()['#name'];
     $csvFile = $form_state->getValue('source_csv_file');
@@ -217,8 +220,8 @@ class DealFeedSettingsForm extends ConfigFormBase {
         $this->messenger()->addError(
           $this->t('An error has occurred: @message', [
             '@message' => $exception->getMessage(),
-          ]),
-          );
+          ])
+        );
       }
     }
     else {

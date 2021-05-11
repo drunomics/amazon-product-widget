@@ -59,6 +59,7 @@ class DealStore {
    *
    * @return \Drupal\Core\Database\StatementInterface|int|null
    *   Returns STATUS_INSERT, STATUS_UPDATE or NULL
+   *
    * @throws \Exception
    */
   public function insertOrUpdate($deal) {
@@ -85,7 +86,7 @@ class DealStore {
    * @return array
    *   Returns an array with deal information, empty array if none found.
    */
-  public function get(string $asin) {
+  public function getActiveDeal(string $asin) {
     $requestTime = $this->time->getRequestTime();
     $deal = $this->connection->select(self::TABLE, 'ta')
       ->fields('ta', ['deal_price'])

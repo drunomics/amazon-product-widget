@@ -5,7 +5,7 @@
  * Module file.
  */
 
-use Drupal\amazon_product_widget\Exception\DealFeedFinishedProcessingException;
+use Drupal\Core\Site\Settings;
 
 /**
  * Implements hook_theme().
@@ -75,7 +75,7 @@ function amazon_product_widget_cron() {
     watchdog_exception('amazon_product_widget', $e);
   }
 
-  amazon_product_widget_cron_update_deals();
+  _amazon_product_widget_deals_cron_update();
 }
 
 /**
@@ -118,11 +118,15 @@ function amazon_product_widget_get_all_asins() {
 /**
  * Called when cron is run.
  */
-function amazon_product_widget_cron_update_deals() {
+function _amazon_product_widget_deals_cron_update() {
   /** @var \Drupal\Core\State\StateInterface $state */
   $state = \Drupal::state();
   /** @var \Drupal\amazon_product_widget\DealFeedService $dealFeedService */
   $dealFeedService = \Drupal::service('amazon_product_widget.deal_feed_service');
+
+  if (!$dealFeedService->isActivated()) {
+    return;
+  }
 
   // Is there a process already running?
   $running = $state->get('amazon_product_widget.deal_cron_running', FALSE);
@@ -155,30 +159,30 @@ function amazon_product_widget_cron_update_deals() {
   }
   else {
     startCron:
+    $importsPerRound = Settings::get('amazon_product_widget.deals.imports_per_round', 5000);
 
     $importState = $state->get('amazon_product_widget.deal_cron_state');
-    // We allow more imports per round when updating via cron.
-    $importsPerRound = 10000;
-    try {
-      $errors = $dealFeedService->import(
-        $importState['file'],
-        $importState['processed'],
-        $importsPerRound
-      );
+    $state = $dealFeedService->import(
+      $importState['file'],
+      $importState['processed'],
+      $importsPerRound
+    );
 
-      $importState['processed'] += $importsPerRound;
-      $importState['errors'] += $errors;
+    $importState['processed'] += $state->processed;
+    $importState['errors']    += $state->errors;
 
-      if ($importState['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
-        throw new DealFeedFinishedProcessingException();
-      }
-    }
-    catch (DealFeedFinishedProcessingException $exception) {
-      $state->set('amazon_product_widget.deal_cron_running', FALSE);
-      $state->set('amazon_product_widget.deal_cron_last_run', time());
-      $state->delete('amazon_product_widget.deal_cron_state');
+    if ($state->finished || $importState['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
+      _amazon_product_widget_deals_reset_state();
 
       return;
     }
   }
+}
+
+function _amazon_product_widget_deals_reset_state() {
+  $state = \Drupal::state();
+
+  $state->set('amazon_product_widget.deal_cron_running', FALSE);
+  $state->set('amazon_product_widget.deal_cron_last_run', time());
+  $state->delete('amazon_product_widget.deal_cron_state');
 }

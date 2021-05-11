@@ -2,7 +2,7 @@
 
 namespace Drupal\amazon_product_widget;
 
-use Drupal\amazon_product_widget\Exception\DealFeedFinishedProcessingException;
+use Drupal\Core\Site\Settings;
 
 /**
  * Class BatchDealImportService.
@@ -27,9 +27,9 @@ class BatchDealImportService {
     $maxProcessingTime = $dealFeedService->getMaxProcessingTime();
 
     // How many imports to do per call to DealFeedService::import().
-    $importsPerRound = 1000;
+    $importsPerRound = Settings::get('amazon_product_widget.deals.imports_per_round', 1000);
 
-    if (empty($context['sandbox'])) {
+    if (!isset($context['sandbox']['filename'])) {
       $context['sandbox']['filename'] = $filename;
       $context['sandbox']['total'] = $total;
       $context['sandbox']['processed'] = 0;
@@ -37,22 +37,17 @@ class BatchDealImportService {
 
     $timeStart = time();
     while (TRUE) {
-      try {
-        $context['sandbox']['errors'] += $dealFeedService->import(
-          $context['sandbox']['filename'],
-          $context['sandbox']['processed'],
-          $importsPerRound
-        );
-        $context['sandbox']['processed'] += $importsPerRound;
-        $context['results']['processed'] = $context['sandbox']['processed'];
-        $context['results']['errors'] = $context['sandbox']['errors'];
-      }
-      catch (DealFeedFinishedProcessingException $exception) {
-        $context['finished'] = 1;
-        break;
-      }
+      $state = $dealFeedService->import(
+        $context['sandbox']['filename'],
+        $context['sandbox']['processed'],
+        $importsPerRound
+      );
 
-      if ($context['sandbox']['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
+      $context['sandbox']['processed'] += $state->processed;
+      $context['results']['processed']  = $state->processed;
+      $context['results']['errors']     = $state->errors;
+
+      if ($state->finished || $state->errors >= $dealFeedService->getMaxDealImportErrors()) {
         $context['finished'] = 1;
         break;
       }
@@ -66,13 +61,14 @@ class BatchDealImportService {
           '\Drupal\amazon_product_widget\BatchDealImportService::importChunked',
         ];
 
-        $batch_set['total'] = count($batch_set['operations']);
-        $batch_set['count'] = $batch_set['total'];
+        $batch_set['total']  = $batch_set['count'] = 1;
+        $batch_set['count']  = $batch_set['total'];
         $context['finished'] = $context['sandbox']['processed'] / $total;
-        $context['message'] = t('Processed @processed out of @total entries with @errors errors.', [
+
+        $context['message']  = t('Processed @processed out of @total entries with @errors errors.', [
           '@processed' => $context['sandbox']['processed'],
-          '@total' => $total,
-          '@errors' => $context['sandbox']['errors'],
+          '@total'     => $context['sandbox']['total'],
+          '@errors'    => $context['sandbox']['errors'],
         ]);
 
         _batch_populate_queue($batch, $batch_next_set);

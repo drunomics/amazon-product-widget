@@ -3,14 +3,11 @@
 namespace Drupal\amazon_product_widget\Commands;
 
 use Drupal\amazon_product_widget\DealFeedService;
-use Drupal\amazon_product_widget\Exception\AmazonDealApiDisabledException;
-use Drupal\amazon_product_widget\Exception\DealFeedFinishedProcessingException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
 use Drupal\Core\Queue\SuspendQueueException;
 use Drush\Commands\DrushCommands;
-use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Class AmazonProductWidgetCommands.
@@ -197,7 +194,6 @@ class AmazonProductWidgetCommands extends DrushCommands {
    * @command apw:deals:update
    */
   public function dealsUpdate($path = NULL) {
-    $errors = 0;
     try {
       if ($path) {
         $importPath = $path;
@@ -205,7 +201,6 @@ class AmazonProductWidgetCommands extends DrushCommands {
       else {
         $importPath = $this->dealFeedService->downloadDealsCsv();
       }
-      $totalEntries = count(file($importPath)) - 1;
 
       if (!file_exists($importPath) || is_dir($importPath)) {
         $this->output()->writeln("Path '$importPath' is either a directory or does not exist.");
@@ -215,18 +210,17 @@ class AmazonProductWidgetCommands extends DrushCommands {
       $this->output()->writeln("File to import: $importPath");
       $this->output()->writeln('Now importing...');
 
+      $totalEntries = count(file($importPath)) - 1;
       $start = 0;
       $entriesPerRound = 5000;
       while (true) {
-        $errors += $this->dealFeedService->import($importPath, $start, $entriesPerRound);
-        $start += $entriesPerRound;
+        $state  = $this->dealFeedService->import($importPath, $start, $entriesPerRound);
+        $start += $state->processed;
+        $errors = $state->errors;
 
         $progress = round($start / $totalEntries * 100, 2);
         $this->output()->writeln("Processed $start / $totalEntries (" . $progress . "%) with $errors errors.");
       }
-    }
-    catch (DealFeedFinishedProcessingException $exception) {
-      $this->output()->writeln("Finished processing with $errors errors.");
     }
     catch (\Throwable $exception) {
       $this->output()->writeln("Error occurred while importing deals:");

@@ -5,7 +5,6 @@ namespace Drupal\amazon_product_widget;
 use DateTime;
 use Drupal\amazon_product_widget\Exception\AmazonDealApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonServiceException;
-use Drupal\amazon_product_widget\Exception\DealFeedFinishedProcessingException;
 use Drupal\amazon_product_widget\Form\DealFeedSettingsForm;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\File\FileSystemInterface;
@@ -110,10 +109,8 @@ class DealFeedService {
    *   Returns the deal row from the store, returns empty array if no deal found.
    */
   public function get(string $asin) {
-    $active = $this->settings->get(DealFeedSettingsForm::SETTINGS_DEAL_FEED_ACTIVE);
-
-    if ($active) {
-      return $this->dealStore->get($asin);
+    if ($this->isActivated()) {
+      return $this->dealStore->getActiveDeal($asin);
     }
     return [];
   }
@@ -128,36 +125,35 @@ class DealFeedService {
    * @param int $entries
    *   How many entries to import. (default is all)
    *
-   * @return int
-   *   The amount of invalid deals that were encountered.
-   *
-   * @throws \Drupal\amazon_product_widget\Exception\DealFeedFinishedProcessingException
+   * @return \Drupal\amazon_product_widget\DealImportState|NULL
+   *   The deal import state, or NULL if the file could not be opened.
    */
-  public function import(string $path, int $start = 0, $entries = -1) {
-    $invalidDeals = 0;
+  public function import(string $path, int $start = 0, int $entries = -1) {
     $fileHandle = NULL;
+    $dealState  = new DealImportState(0, 0);
+
     try {
       $fileHandle = new \SplFileObject($path);
     }
     catch (\Exception $exception) {
       watchdog_exception('amazon_product_widget', $exception);
-      return 0;
+      return NULL;
     }
 
     $current = ($start === 0) ? 1 : $start;
-    $processedLines = 0;
     while (true) {
       $fileHandle->seek($current);
 
       if (FALSE === $fileHandle->valid()) {
-        throw new DealFeedFinishedProcessingException();
+        $dealState->finished = TRUE;
+        return $dealState;
       }
 
       $line = $fileHandle->getCurrentLine();
       if ($line === FALSE) {
-        $invalidDeals += 1;
+        $dealState->errors += 1;
+        $dealState->processed += 1;
         $current += 1;
-        $processedLines += 1;
         continue;
       }
 
@@ -172,15 +168,17 @@ class DealFeedService {
       // Some deals do not have an ASIN, they are a hub page for various
       // collections of deals, these do not have an ASIN, we skip them.
       if (!amazon_product_widget_is_valid_asin($asin)) {
-        $processedLines += 1;
+        $dealState->processed += 1;
         $current += 1;
         continue;
       }
 
       if ($dealEnd === NULL || $dealStart === NULL) {
-        $invalidDeals += 1;
-        $processedLines += 1;
+        $dealState->processed += 1;
+        $dealState->errors += 1;
         $current += 1;
+
+        continue;
       }
       else {
         try {
@@ -192,11 +190,12 @@ class DealFeedService {
             'deal_price' => $price,
           ]);
         } catch (\Exception $exception) {
-          $invalidDeals += 1;
+          $dealState->errors += 1;
         }
       }
-      $processedLines += 1;
-      if ($entries !== -1 && $processedLines >= $entries) {
+
+      $dealState->processed += 1;
+      if ($entries !== -1 && $dealState->processed >= $entries) {
         break;
       }
       else {
@@ -204,7 +203,7 @@ class DealFeedService {
       }
     }
 
-    return $invalidDeals;
+    return $dealState;
   }
 
   /**
@@ -228,42 +227,30 @@ class DealFeedService {
     // Amazon throws a fit.
     $url = 'https://' . $username . ':' . $password . '@' . $parsedUrl['host'] . $parsedUrl['path'] . '?' . $parsedUrl['query'];
 
+    $temporaryDirectory = $this->fileSystem->getTempDirectory();
+    $filename = 'dealfeed_' . substr(uniqid(), 0, 8);
+    $temporaryFile = $temporaryDirectory . '/' . $filename;
+    $destinationFile = $destination ? $destination : ($temporaryDirectory . '/' . $filename . '.csv');
+
     $response = $this->httpClient->request('GET', $url, [
-      'allow_redirects' => FALSE,
-      'http_errors' => FALSE,
+      'allow_redirects' => TRUE,
+      'http_errors'     => FALSE,
       'auth' => [
         $username,
         $password,
         'digest',
       ],
+      'sink' => $temporaryFile,
     ]);
 
-    // First response will be 302 redirecting us to an URL with proper signed
-    // parameters where we can download the file.
-    if ($response->getStatusCode() === 302) {
-      $location = $response->getHeader('Location');
-      if (count($location) < 1) {
-        throw new \RuntimeException('Unexpected redirect response from Amazon.');
+    if ($response->getStatusCode() === 200) {
+      if (!file_exists($temporaryFile)) {
+        throw new FileNotFoundException("Could not download deal feed file.");
       }
-      $location = reset($location);
-
-      $temporaryDirectory = $this->fileSystem->getTempDirectory();
-      $filename = substr(uniqid(), 0, 8);
-      $temporaryFile = $temporaryDirectory . '/' . $filename;
-      $destinationFile = $destination ? $destination : ($temporaryDirectory . '/' . $filename . '.csv');
-
-      $response = $this->httpClient->get($location, [
-        'sink' => $temporaryFile,
-      ]);
-
-      if ($response->getStatusCode() === 200) {
-        if (!file_exists($temporaryFile)) {
-          throw new FileNotFoundException("Could not download deal feed file.");
-        }
-        $this->extractGzip($temporaryFile, $destinationFile, TRUE);
-        return $destinationFile;
-      }
+      $this->extractGzip($temporaryFile, $destinationFile, TRUE);
+      return $destinationFile;
     }
+
     throw new AmazonServiceException('Could not download CSV file from Amazon.');
   }
 
@@ -281,8 +268,7 @@ class DealFeedService {
    * @throws \Drupal\amazon_product_widget\Exception\AmazonServiceException
    */
   public function update(string $path = NULL) {
-    $active = $this->settings->get(DealFeedSettingsForm::SETTINGS_DEAL_FEED_ACTIVE);
-    if (!$active) {
+    if (!$this->isActivated()) {
       throw new AmazonDealApiDisabledException();
     }
 
@@ -347,6 +333,7 @@ class DealFeedService {
 
     $outputHandle = fopen($destination, 'wb+');
     if ($outputHandle === FALSE) {
+      gzclose($gzipHandle);
       throw new \RuntimeException("Could not open '$destination' file for writing.");
     }
 
@@ -421,6 +408,16 @@ class DealFeedService {
    */
   public function getCronInterval() {
     return $this->settings->get('deal_cron_interval');
+  }
+
+  /**
+   * Returns whether the deal feed is activated.
+   *
+   * @return bool
+   *   TRUE if activated, FALSE otherwise.
+   */
+  public function isActivated() {
+    return $this->settings->get(DealFeedSettingsForm::SETTINGS_DEAL_FEED_ACTIVE);
   }
 
 }

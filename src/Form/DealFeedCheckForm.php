@@ -93,7 +93,7 @@ class DealFeedCheckForm extends FormBase implements ContainerInjectionInterface 
       $form_state->setValue('output', var_export($deal, TRUE));
     }
     else {
-      $form_state->setValue('output', $this->t('No active deal found for @asin.', [
+      $form_state->setValue('output', $this->t('No deal found for @asin.', [
         '@asin' => $asin,
       ]));
     }
