@@ -230,11 +230,22 @@ class DealStore {
    * Returns the number of active deals in the storage.
    *
    * @return int
-   *   Active deals.
+   *   Active deals count.
    */
   public function getActiveCount() {
     $query = $this->connection->select(self::TABLE, 'ta');
     $query->condition('deal_status', self::DEAL_STATUS_AVAILABLE);
+    return $query->countQuery()->execute()->fetchField();
+  }
+
+  /**
+   * Returns the total number of deals in the database.
+   *
+   * @return int
+   *   Deals count.
+   */
+  public function getCount() {
+    $query = $this->connection->select(self::TABLE, 'ta');
     return $query->countQuery()->execute()->fetchField();
   }
 

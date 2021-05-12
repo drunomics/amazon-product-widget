@@ -94,42 +94,62 @@ class DealFeedSettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config(static::CONFIG_NAME);
 
-    $form[static::SETTINGS_DEAL_FEED_URL] = [
+    $form['update_deal_feed_status_group'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Deal Feed Status'),
+    ];
+
+    $totalDeals  = $this->dealService->getDealStore()->getCount();
+    $activeDeals = $this->dealService->getDealStore()->getActiveCount();
+    $form['update_deal_feed_status_group']['total_deals'] = [
+      '#type' => 'item',
+      '#title' => $this->t('<code>@total</code> deals in the store, <code>@active</code> of these are active.', [
+        '@total'  => number_format($totalDeals),
+        '@active' => number_format($activeDeals),
+      ]),
+    ];
+
+    $form['update_deal_feed_api_group'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Deal Feed API settings'),
+    ];
+
+    $form['update_deal_feed_api_group'][static::SETTINGS_DEAL_FEED_URL] = [
       '#type' => 'url',
       '#title' => $this->t('Feed URL'),
       '#description' => $this->t('URL of the data feed.'),
       '#default_value' => $config->get(static::SETTINGS_DEAL_FEED_URL),
     ];
 
-    $form[static::SETTINGS_DEAL_FEED_USERNAME] = [
+    $form['update_deal_feed_api_group'][static::SETTINGS_DEAL_FEED_USERNAME] = [
       '#type' => 'textfield',
       '#title' => $this->t('Username'),
       '#description' => $this->t('Username for accessing the feed.'),
       '#default_value' => $config->get(static::SETTINGS_DEAL_FEED_USERNAME),
     ];
 
-    $form[static::SETTINGS_DEAL_FEED_PASSWORD] = [
+    $form['update_deal_feed_api_group'][static::SETTINGS_DEAL_FEED_PASSWORD] = [
       '#type' => 'textfield',
       '#title' => $this->t('Password'),
       '#description' => $this->t('Password for accessing the feed.'),
       '#default_value' => $config->get(static::SETTINGS_DEAL_FEED_PASSWORD),
     ];
 
-    $form[static::SETTINGS_MAX_CSV_PROCESSING_TIME] = [
+    $form['update_deal_feed_api_group'][static::SETTINGS_MAX_CSV_PROCESSING_TIME] = [
       '#type' => 'number',
       '#title' => $this->t('Max CSV processing time'),
       '#description' => $this->t('The maximum amount of time (in seconds) to process a chunk of the Deal Feed CSV.'),
       '#default_value' => $config->get(static::SETTINGS_MAX_CSV_PROCESSING_TIME),
     ];
 
-    $form[static::SETTINGS_DEAL_CRON_INTERVAL] = [
+    $form['update_deal_feed_api_group'][static::SETTINGS_DEAL_CRON_INTERVAL] = [
       '#type' => 'number',
       '#title' => $this->t('Cron interval'),
       '#description' => $this->t('The number of minutes to wait between cron intervals.'),
       '#default_value' => $config->get(static::SETTINGS_DEAL_CRON_INTERVAL),
     ];
 
-    $form[static::SETTINGS_DEAL_FEED_ACTIVE] = [
+    $form['update_deal_feed_api_group'][static::SETTINGS_DEAL_FEED_ACTIVE] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Activate Deal Feed'),
       '#description' => $this->t('Whether or not prices will be fetched from deals if available.'),
