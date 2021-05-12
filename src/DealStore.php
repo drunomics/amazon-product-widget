@@ -65,7 +65,7 @@ class DealStore {
   public function insertOrUpdate($deal) {
     return $this->connection->merge(self::TABLE)
       ->key('asin', $deal['asin'])
-      ->insertFields([
+      ->fields([
         'asin'        => $deal['asin'],
         'created'     => $this->time->getRequestTime(),
         'updated'     => $this->time->getRequestTime(),
@@ -74,6 +74,7 @@ class DealStore {
         'deal_price'  => $deal['deal_price'],
         'deal_status' => $deal['deal_status'],
       ])
+      ->expression('created', 'created')
       ->execute();
   }
 

@@ -30,9 +30,10 @@ class BatchDealImportService {
     $importsPerRound = Settings::get('amazon_product_widget.deals.imports_per_round', 1000);
 
     if (!isset($context['sandbox']['filename'])) {
-      $context['sandbox']['filename'] = $filename;
-      $context['sandbox']['total'] = $total;
+      $context['sandbox']['filename']  = $filename;
+      $context['sandbox']['total']     = $total;
       $context['sandbox']['processed'] = 0;
+      $context['sandbox']['errors']    = 0;
     }
 
     $timeStart = time();
@@ -45,9 +46,10 @@ class BatchDealImportService {
 
       $context['sandbox']['processed'] += $state->processed;
       $context['results']['processed']  = $state->processed;
+      $context['sandbox']['errors']    += $state->errors;
       $context['results']['errors']     = $state->errors;
 
-      if ($state->finished || $state->errors >= $dealFeedService->getMaxDealImportErrors()) {
+      if ($state->finished || $context['sandbox']['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
         $context['finished'] = 1;
         break;
       }
@@ -62,9 +64,9 @@ class BatchDealImportService {
         ];
 
         $batch_set['total']  = $batch_set['count'] = 1;
-        $context['finished'] = $context['sandbox']['processed'] / $total;
+        $context['finished'] = $context['sandbox']['processed'] / $context['sandbox']['total'];
 
-        $context['message']  = t('Processed @processed out of @total entries with @errors errors.', [
+        $context['message'] = t('Processed @processed out of @total entries with @errors errors.', [
           '@processed' => $context['sandbox']['processed'],
           '@total'     => $context['sandbox']['total'],
           '@errors'    => $context['sandbox']['errors'],
