@@ -11,3 +11,17 @@ amazon_product_widget.product_renewal:
   description: 'Renew cached amazon product data.'
   parent: amazon_product_widget.settings_form
   weight: 100
+
+amazon_product_widget.deal_feed_settings_form:
+  title: 'Amazon Deal Feed'
+  route_name: amazon_product_widget.deal_feed_settings_form
+  description: 'Amazon Product Widget Deal Feed settings'
+  parent: system.admin_config_services
+  weight: 101
+
+amazon_product_widget.deal_feed_check_form:
+  title: 'Amazon Deal Check'
+  route_name: amazon_product_widget.deal_feed_settings_form
+  description: 'Check deal status.'
+  parent: amazon_product_widget.deal_feed_settings_form
+  weight: 102
