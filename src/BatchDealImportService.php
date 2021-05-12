@@ -62,7 +62,6 @@ class BatchDealImportService {
         ];
 
         $batch_set['total']  = $batch_set['count'] = 1;
-        $batch_set['count']  = $batch_set['total'];
         $context['finished'] = $context['sandbox']['processed'] / $total;
 
         $context['message']  = t('Processed @processed out of @total entries with @errors errors.', [

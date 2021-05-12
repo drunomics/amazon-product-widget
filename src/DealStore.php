@@ -91,8 +91,8 @@ class DealStore {
     $deal = $this->connection->select(self::TABLE, 'ta')
       ->fields('ta', ['deal_price'])
       ->condition('asin', $asin)
-      ->condition('deal_start', $requestTime, '>=')
-      ->condition('deal_end', $requestTime, '<')
+      ->condition('deal_start', $requestTime, '<')
+      ->condition('deal_end', $requestTime, '>=')
       ->condition('deal_status', self::DEAL_STATUS_AVAILABLE)
       ->execute()
       ->fetchAssoc();
