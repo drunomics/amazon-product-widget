@@ -67,6 +67,11 @@ class DealFeedCheckForm extends FormBase implements ContainerInjectionInterface 
       '#type' => 'textarea',
       '#disabled' => TRUE,
       '#default_value' => $form_state->getValue('output', ''),
+      '#attributes' => [
+        'style' => [
+          'min-height: 200px',
+        ],
+      ],
     ];
 
     return $form;
