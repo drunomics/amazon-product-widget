@@ -47,7 +47,7 @@ class BatchDealImportService {
       $context['sandbox']['processed'] += $state->processed;
       $context['results']['processed']  = $state->processed;
       $context['sandbox']['errors']    += $state->errors;
-      $context['results']['errors']     = $state->errors;
+      $context['results']['errors']     = $context['sandbox']['errors'];
 
       if ($state->finished || $context['sandbox']['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
         $context['finished'] = 1;
