@@ -9,6 +9,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -45,6 +46,13 @@ class DealFeedSettingsForm extends ConfigFormBase {
   protected $entityTypeManager;
 
   /**
+   * State.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
    * DealFeedSettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -53,12 +61,15 @@ class DealFeedSettingsForm extends ConfigFormBase {
    *   Deal feed service.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   Entity type manager.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   State.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, DealFeedService $dealService, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(ConfigFactoryInterface $config_factory, DealFeedService $dealService, EntityTypeManagerInterface $entityTypeManager, StateInterface $state) {
     parent::__construct($config_factory);
 
     $this->dealService = $dealService;
     $this->entityTypeManager = $entityTypeManager;
+    $this->state = $state;
   }
 
   /**
@@ -68,7 +79,8 @@ class DealFeedSettingsForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('amazon_product_widget.deal_feed_service'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('state')
     );
   }
 
@@ -103,9 +115,18 @@ class DealFeedSettingsForm extends ConfigFormBase {
     $activeDeals = $this->dealService->getDealStore()->getActiveCount();
     $form['update_deal_feed_status_group']['total_deals'] = [
       '#type' => 'item',
-      '#title' => $this->t('<code>@total</code> deals in the store, <code>@active</code> of these are active.', [
+      '#description' => $this->t('<code>@total</code> deals in the store, <code>@active</code> of these are active.', [
         '@total'  => number_format($totalDeals),
         '@active' => number_format($activeDeals),
+      ]),
+    ];
+
+    $lastRun = $this->state->get('amazon_product_widget.deal_cron_last_run', 0);
+    $form['update_deal_feed_status_group']['cron_last_run'] = [
+      '#type'  => 'item',
+      '#title' => $this->t('Cron last run time'),
+      '#description' => $this->t('Cron was last run at: @time', [
+        '@time' => $lastRun === 0 ? 'never' : $this->dealService->getDealStore()->fromTimestamp($lastRun),
       ]),
     ];
 
