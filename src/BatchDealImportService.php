@@ -51,6 +51,15 @@ class BatchDealImportService {
 
       if ($state->finished || $context['sandbox']['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
         $context['finished'] = 1;
+        $batch = &batch_get();
+
+        // Kill the second set, it's put there by Drupal and has no use for us.
+        // The only thing it does is cause a undefined index error when being
+        // done with the set. Works nicely, though a bit hackish.
+        if (isset($batch['sets']) && count($batch['sets']) === 2) {
+          unset($batch['sets'][1]);
+        }
+        $k = 33;
         break;
       }
 

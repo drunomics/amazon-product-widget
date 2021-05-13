@@ -124,8 +124,7 @@ class DealFeedSettingsForm extends ConfigFormBase {
     $lastRun = $this->state->get('amazon_product_widget.deal_cron_last_run', 0);
     $form['update_deal_feed_status_group']['cron_last_run'] = [
       '#type'  => 'item',
-      '#title' => $this->t('Cron last run time'),
-      '#description' => $this->t('Cron was last run at: @time', [
+      '#description' => $this->t('Cron was last run at: @time.', [
         '@time' => $lastRun === 0 ? 'never' : $this->dealService->getDealStore()->fromTimestamp($lastRun),
       ]),
     ];
