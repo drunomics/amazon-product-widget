@@ -159,19 +159,21 @@ function _amazon_product_widget_deals_cron_update() {
   }
   else {
     startCron:
-    $importsPerRound = Settings::get('amazon_product_widget.deals.imports_per_round', 5000);
-
-    $importState = $state->get('amazon_product_widget.deal_cron_state');
-    $state = $dealFeedService->import(
+    $importsPerRound = Settings::get('amazon_product_widget.deals.imports_per_round', -1);
+    $importState     = $state->get('amazon_product_widget.deal_cron_state');
+    
+    $roundState = $dealFeedService->import(
       $importState['file'],
       $importState['processed'],
       $importsPerRound
     );
 
-    $importState['processed'] += $state->processed;
-    $importState['errors']    += $state->errors;
+    $importState['processed'] += $roundState->processed;
+    $importState['errors']    += $roundState->errors;
 
-    if ($state->finished || $importState['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
+    $state->set('amazon_product_widget.deal_cron_state', $importState);
+
+    if ($roundState->finished || $importState['errors'] >= $dealFeedService->getMaxDealImportErrors()) {
       _amazon_product_widget_deals_reset_state();
 
       return;
