@@ -49,6 +49,7 @@ function amazon_product_widget_theme($existing, $type, $theme, $path) {
         'suggested_price' => '',
         'product_available' => FALSE,
         'is_eligible_for_prime' => FALSE,
+        'is_search_result_fallback' => FALSE,
         'overrides' => [],
         'customer_reviews' => [
           'count' => 0,
@@ -109,4 +110,24 @@ function amazon_product_widget_get_all_asins() {
     }
   }
   return $asins;
+}
+
+/**
+ * Validates product data.
+ *
+ * @param array $data
+ *   The product data to check.
+ *
+ * @return bool
+ *   The validity.
+ */
+function amazon_product_widget_validate_product_data(array $data) {
+  if (!empty($data['medium_image'])
+    && !empty($data['large_image'])
+    && !empty($data['title'])
+    && !empty($data['price'])
+    && !empty($data['product_available'])) {
+    return TRUE;
+  }
+  return FALSE;
 }
