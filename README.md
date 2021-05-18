@@ -211,13 +211,19 @@ Gets Deal information for a particular ASIN.
 
 ## Hooks
 
-The module provides one hook:
+The module provides the following hooks:
 
 `hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL)`
 
 It allows modification of product data passed to the product widget template. You would modify the product data
 in the product container. Also passed is the Amazon product field, and lastly the node on which the field is
 being displayed on. This can also be NULL in the case where the field is attached to a taxonomy term.
+
+`hook_amazon_product_widget_alter_validate_product_data(AmazonProductField $product_field, array $product_data)`
+
+Allows you to validate if the product is valid. This allows you to show the amazon product widget even though the
+product is not available, then you can, for example, show your own custom message instead of the product box being
+absent altogether.
 
 ## Maintainers
 
