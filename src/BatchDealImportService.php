@@ -59,7 +59,6 @@ class BatchDealImportService {
         if (isset($batch['sets']) && count($batch['sets']) === 2) {
           unset($batch['sets'][1]);
         }
-        $k = 33;
         break;
       }
 
