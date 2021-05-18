@@ -23,3 +23,23 @@ amazon_product_widget.product_renewal:
     _form: 'Drupal\amazon_product_widget\Form\ProductRenewalForm'
   requirements:
     _permission: 'renew amazon product data'
+
+amazon_product_widget.deal_feed_settings_form:
+  path: '/admin/config/services/amazon-product-widget/deal-feed'
+  defaults:
+    _title: 'Amazon Deal Feed'
+    _form: 'Drupal\amazon_product_widget\Form\DealFeedSettingsForm'
+  requirements:
+    _permission: 'administer amazon product widget'
+  options:
+    _admin_route: TRUE
+
+amazon_product_widget.deal_feed_check_form:
+  path: '/admin/config/services/amazon-product-widget/deal-check'
+  defaults:
+    _title: 'Amazon Deal Feed'
+    _form: 'Drupal\amazon_product_widget\Form\DealFeedCheckForm'
+  requirements:
+    _permission: 'administer amazon product widget'
+  options:
+    _admin_route: TRUE

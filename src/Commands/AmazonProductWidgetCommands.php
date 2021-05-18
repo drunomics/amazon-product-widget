@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Commands;
 
+use Drupal\amazon_product_widget\DealFeedService;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
@@ -40,6 +41,13 @@ class AmazonProductWidgetCommands extends DrushCommands {
   protected $queueWorker;
 
   /**
+   * DealFeedService.
+   *
+   * @var \Drupal\amazon_product_widget\DealFeedService
+   */
+  protected $dealFeedService;
+
+  /**
    * AmazonProductWidgetCommands constructor.
    *
    * @param \Drupal\amazon_product_widget\ProductService $productService
@@ -48,12 +56,15 @@ class AmazonProductWidgetCommands extends DrushCommands {
    *   QueueFactory.
    * @param \Drupal\Core\Queue\QueueWorkerManagerInterface $queueWorker
    *   QueueWorkerManagerInterface.
+   * @param \Drupal\amazon_product_widget\DealFeedService $dealFeedService
+   *   Deal feed service.
    */
-  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker) {
+  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker, DealFeedService $dealFeedService) {
     parent::__construct();
     $this->productService = $productService;
     $this->queue = $queue;
     $this->queueWorker = $queueWorker;
+    $this->dealFeedService = $dealFeedService;
   }
 
   /**
@@ -163,4 +174,73 @@ class AmazonProductWidgetCommands extends DrushCommands {
     $this->productService->getProductStore()->resetAll();
     $this->output()->writeln("All products have been marked for renewal.");
   }
+
+  /**
+   * Prints the number of active deals.
+   *
+   * @command apw:deals:active-deals
+   */
+  public function dealsCount() {
+    $count = $this->dealFeedService->getDealStore()->getActiveCount();
+    $this->output()->writeln("There are $count active deals in the database.");
+  }
+
+  /**
+   * Updates the deals in the storage.
+   *
+   * @param string $path
+   *   Path to the CSV to be used to update the store, otherwise calls the API.
+   *
+   * @command apw:deals:update
+   */
+  public function dealsUpdate($path = NULL) {
+    try {
+      if ($path) {
+        $importPath = $path;
+      }
+      else {
+        $importPath = $this->dealFeedService->downloadDealsCsv();
+      }
+
+      if (!file_exists($importPath) || is_dir($importPath)) {
+        $this->output()->writeln("Path '$importPath' is either a directory or does not exist.");
+        return;
+      }
+
+      $this->output()->writeln("File to import: $importPath");
+      $this->output()->writeln('Now importing...');
+
+      $totalEntries = count(file($importPath)) - 1;
+      $start = 0;
+      $entriesPerRound = 5000;
+      while (true) {
+        $state  = $this->dealFeedService->import($importPath, $start, $entriesPerRound);
+        $start += $state->processed;
+        $errors = $state->errors;
+
+        $progress = round($start / $totalEntries * 100, 2);
+        $this->output()->writeln("Processed $start / $totalEntries (" . $progress . "%) with $errors errors.");
+      }
+    }
+    catch (\Throwable $exception) {
+      $this->output()->writeln("Error occurred while importing deals:");
+      $this->output()->writeln($exception->getMessage());
+    }
+  }
+
+  /**
+   * Gets deal information for an ASIN.
+   *
+   * @param string $asin
+   *   ASIN.
+   *
+   * @command apw:deals:info
+   */
+  public function dealInfo(string $asin) {
+    $deal = $this->dealFeedService->getDealStore()->getByAsin($asin);
+    $deal = $this->dealFeedService->getDealStore()->prettifyDeal($deal);
+    $this->output()->writeln("Deal information for $asin:");
+    $this->output()->writeln(var_export($deal, TRUE));
+  }
+
 }

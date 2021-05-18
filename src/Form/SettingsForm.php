@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Form;
 
+use Drupal\amazon_product_widget\ConfigSettingsTrait;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
@@ -9,6 +10,8 @@ use Drupal\Core\Form\FormStateInterface;
  * Configure Amazon Product Widget for this site.
  */
 class SettingsForm extends ConfigFormBase {
+
+  use ConfigSettingsTrait;
 
   const CONFIG_NAME = 'amazon_product_widget.settings';
 
@@ -38,25 +41,6 @@ class SettingsForm extends ConfigFormBase {
    */
   public function getFormId() {
     return 'amazon_product_widget_settings';
-  }
-
-  /**
-   * Gets all available settings keys.
-   *
-   * @return array
-   *
-   * @throws \ReflectionException
-   */
-  public static function getAvailableSettingsKeys() {
-    $settings_keys = [];
-    $reflect = new \ReflectionClass(static::class);
-    foreach ($reflect->getConstants() as $key => $value) {
-      if (strpos($key, 'SETTINGS_') === 0) {
-        $settings_keys[$key] = $value;
-      }
-    }
-
-    return $settings_keys;
   }
 
   /**
