@@ -1,0 +1,6 @@
+max_csv_processing_time: 30
+deal_feed_url: ''
+deal_feed_username: ''
+deal_feed_password: ''
+deal_feed_activated: false
+deal_cron_interval: 1440

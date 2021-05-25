@@ -115,6 +115,13 @@ class ProductService {
   protected $maxRequestPerSecond;
 
   /**
+   * The deal feed service.
+   *
+   * @var \Drupal\amazon_product_widget\DealFeedService
+   */
+  protected $dealService;
+
+  /**
    * ProductService constructor.
    *
    * @param \Drupal\amazon_product_widget\ProductStoreFactory $store_factory
@@ -131,8 +138,10 @@ class ProductService {
    *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler.
+   * @param \Drupal\amazon_product_widget\DealFeedService $dealService
+   *   Deal feed service.
    */
-  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler) {
+  public function __construct(ProductStoreFactory $store_factory, StateInterface $state, LockBackendInterface $lock, ConfigFactoryInterface $config, QueueInterface $queue, EntityTypeManager $entityTypeManager, ModuleHandlerInterface $moduleHandler, DealFeedService $dealService) {
     $this->productStore = $store_factory->get(ProductStore::COLLECTION_PRODUCTS);
     $this->searchResultStore = $store_factory->get(ProductStore::COLLECTION_SEARCH_RESULTS);
     $this->state = $state;
@@ -140,6 +149,7 @@ class ProductService {
     $this->queue = $queue;
     $this->entityTypeManager = $entityTypeManager;
     $this->moduleHandler = $moduleHandler;
+    $this->dealService = $dealService;
 
     $this->settings = $config->get('amazon_product_widget.settings');
     $this->amazonApiDisabled = $config->get('amazon_product_widget.settings')->get('amazon_api_disabled');
@@ -679,6 +689,8 @@ class ProductService {
         '#price' => $data['price'],
         '#suggested_price' => $data['suggested_price'],
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
+        '#is_search_result_fallback' => $data['is_search_result_fallback'],
+        '#product_available' => $data['product_available'],
         '#overrides' => $data['overrides'],
         '#customer_reviews' => $data['customer_reviews'],
       ];
@@ -720,9 +732,22 @@ class ProductService {
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
     foreach ($product_data as $asin => $data) {
-      if (!$this->validateProductData($data)) {
+      $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
+
+      if (count($callbackResults)) {
+        $valid = TRUE;
+        foreach ($callbackResults as $result) {
+          $valid = $valid && $result;
+        }
+      }
+      else {
+        $valid = amazon_product_widget_validate_product_data($data);
+      }
+
+      if (!$valid) {
         $replace[] = $asin;
       }
+
     }
 
     $fill_up_with_fallback = $this->settings->get('fill_up_with_fallback');
@@ -750,9 +775,10 @@ class ProductService {
         if (
           empty($product_data[$asin])
           && !empty($fallback_data[$asin])
-          && $this->validateProductData($fallback_data[$asin])
+          && amazon_product_widget_validate_product_data($fallback_data[$asin])
         ) {
           $product_data[$asin] = $fallback_data[$asin];
+          $product_data[$asin]['is_search_result_fallback'] = TRUE;
           if (count($replace)) {
             array_pop($replace);
           }
@@ -783,6 +809,14 @@ class ProductService {
     $products = [];
     foreach ($product_data as $data) {
       $data = (array) $data;
+
+      // If a deal is active, the correct price should be shown.
+      $deal = $this->dealService->get($data['ASIN']);
+      if (!empty($deal) && isset($deal['deal_price'])) {
+        $data['suggested_price'] = $data['price'];
+        $data['price'] = $deal['deal_price'];
+      }
+
       $products[] = [
         'medium_image' => $data['medium_image'] + $image_defaults,
         'large_image' => $data['large_image'] + $image_defaults,
@@ -796,6 +830,8 @@ class ProductService {
         'price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
+        'is_search_result_fallback' => $data['is_search_result_fallback'] ?? FALSE,
+        'product_available' => $data['product_available'] ?? FALSE,
         'overrides' => $data['overrides'],
         'customer_reviews' => $data['customer_reviews'] ?? $customer_reviews_defaults,
       ];
@@ -810,26 +846,6 @@ class ProductService {
     $this->moduleHandler->invokeAll('amazon_product_widget_alter_product_data', [&$products_container, $product_field, $node]);
 
     return $products_container;
-  }
-
-  /**
-   * Validates product data.
-   *
-   * @param $data
-   *   The product data to check.
-   *
-   * @return bool
-   *   The validity.
-   */
-  protected function validateProductData($data) {
-    if (!empty($data['medium_image'])
-      && !empty($data['large_image'])
-      && !empty($data['title'])
-      && !empty($data['price'])
-      && !empty($data['product_available'])) {
-      return TRUE;
-    }
-    return FALSE;
   }
 
   /**
