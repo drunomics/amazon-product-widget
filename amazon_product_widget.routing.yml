@@ -43,3 +43,13 @@ amazon_product_widget.deal_feed_check_form:
     _permission: 'administer amazon product widget'
   options:
     _admin_route: TRUE
+
+amazon_product_widget.more_info:
+  path: '/admin/config/services/amazon-product-widget/info/{asin}'
+  defaults:
+    _title: 'Details Page'
+    _controller: '\Drupal\amazon_product_widget\Controller\AmazonProductController::details'
+  requirements:
+    _permission: 'view amazon product data'
+  options:
+    _admin_route: TRUE

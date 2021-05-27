@@ -2,6 +2,7 @@
 
 namespace Drupal\amazon_product_widget\Controller;
 
+use Drupal\amazon_product_widget\DealFeedServiceTrait;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\amazon_product_widget\ProductServiceTrait;
 use Drupal\Core\Cache\CacheableJsonResponse;
@@ -13,6 +14,7 @@ use Drupal\Core\Lock\LockBackendInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Render\RendererInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Controller to request Amazon products via Amazon API.
@@ -20,6 +22,7 @@ use Drupal\Core\Render\RendererInterface;
 class AmazonProductController extends ControllerBase {
 
   use ProductServiceTrait;
+  use DealFeedServiceTrait;
 
   /**
    * The renderer.
@@ -140,6 +143,60 @@ class AmazonProductController extends ControllerBase {
     $response->setData(['count' => $count, 'content' => $content]);
 
     return $response;
+  }
+
+  /**
+   * Returns details of a product.
+   *
+   * @param string $asin
+   *   The ASIN.
+   *
+   * @return array
+   *   The render array.
+   */
+  public function details(string $asin) {
+    $build = [];
+    $build['#title'] = $this->t('Product Details for @asin', [
+      '@asin' => $asin,
+    ]);
+
+    try {
+      $productData = reset($this->getProductService()->getProductData([$asin]));
+
+      $build['product_info'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('Product data'),
+        '#value' => var_export($productData, TRUE),
+        '#attributes' => [
+          'readonly' => 'readonly',
+          'disabled' => 'disabled',
+        ],
+        '#rows' => 30,
+      ];
+
+      $dealData = $this->getDealService()->get($asin);
+      $dealData = $this->getDealService()->getDealStore()->prettifyDeal($dealData);
+
+      $build['deal_info'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('Deal data'),
+        '#value' => var_export($dealData, TRUE),
+        '#attributes' => [
+          'readonly' => 'readonly',
+          'disabled' => 'disabled',
+        ],
+        '#rows' => 20,
+      ];
+    }
+    catch (\Exception $exception) {
+      $this->messenger()->addError(
+        $this->t('An error occurred: @message', [
+          '@message' => $exception->getMessage(),
+        ])
+      );
+    }
+
+    return $build;
   }
 
 }
