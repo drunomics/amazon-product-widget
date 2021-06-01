@@ -22,10 +22,13 @@ function amazon_product_widget_post_update_install_view(&$sandbox) {
   }
 
   // Create a menu link.
-  $menuLink = MenuLinkContent::load('amazon_product_widget_menu_overview');
-  if (!$menuLink) {
+  $menuStorage = \Drupal::entityTypeManager()->getStorage('menu_link_content');
+  $menuEntries = $menuStorage->loadByProperties([
+    'link.uri' => 'internal:/admin/config/services/amazon-product-widget/products',
+  ]);
+
+  if (!($menuLink = reset($menuEntries))) {
     MenuLinkContent::create([
-      'id'        => 'amazon_product_widget_menu_overview',
       'link'      => ['uri' => 'internal:/admin/config/services/amazon-product-widget/products'],
       'title'     => 'Product Overview',
       'menu_name' => 'admin',
