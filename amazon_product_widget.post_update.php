@@ -17,15 +17,20 @@ function amazon_product_widget_post_update_install_view(&$sandbox) {
   $source = new FileStorage($configPath);
   /** @var \Drupal\Core\Config\StorageInterface $configStorage */
   $configStorage = \Drupal::service('config.storage');
-  $configStorage->write('views.view.amazon_product_widget_product_overview', $source->read('views.view.amazon_product_widget_product_overview'));
+  if (!$configStorage->exists('views.view.amazon_product_widget_product_overview')) {
+    $configStorage->write('views.view.amazon_product_widget_product_overview', $source->read('views.view.amazon_product_widget_product_overview'));
+  }
 
   // Create a menu link.
-  MenuLinkContent::create([
-    'id'        => 'amazon_product_widget_menu_overview',
-    'link'      => ['uri' => 'internal:/admin/config/services/amazon-product-widget/products'],
-    'title'     => 'Product Overview',
-    'menu_name' => 'admin',
-    'parent'    => 'amazon_product_widget.settings_form',
-    'weight'    => 102,
-  ])->save();
+  $menuLink = MenuLinkContent::load('amazon_product_widget_menu_overview');
+  if (!$menuLink) {
+    MenuLinkContent::create([
+      'id'        => 'amazon_product_widget_menu_overview',
+      'link'      => ['uri' => 'internal:/admin/config/services/amazon-product-widget/products'],
+      'title'     => 'Product Overview',
+      'menu_name' => 'admin',
+      'parent'    => 'amazon_product_widget.settings_form',
+      'weight'    => 102,
+    ])->save();
+  }
 }
