@@ -161,7 +161,8 @@ class AmazonProductController extends ControllerBase {
     ]);
 
     try {
-      $productData = reset($this->getProductService()->getProductData([$asin]));
+      $productData = $this->getProductService()->getProductData([$asin]);
+      $productData = reset($productData);
 
       $build['product_info'] = [
         '#type' => 'textarea',
