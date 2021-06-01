@@ -5,6 +5,8 @@
  * Install file.
  */
 
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+
 /**
  * Implements hook_schema().
  */
@@ -129,6 +131,17 @@ function amazon_product_widget_schema() {
 function amazon_product_widget_uninstall() {
   \Drupal::configFactory()->getEditable('amazon_product_widget.settings')->delete();
   \Drupal::configFactory()->getEditable('amazon_product_widget.deal_settings')->delete();
+
+  $menuLink = MenuLinkContent::load('amazon_product_widget_menu_overview');
+  if ($menuLink) {
+    $menuLink->delete();
+  }
+
+  /** @var \Drupal\Core\Config\StorageInterface $configStorage */
+  $configStorage = \Drupal::service('config.storage');
+  if ($configStorage->exists('views.view.amazon_product_widget_product_overview')) {
+    $configStorage->delete('views.view.amazon_product_widget_product_overview');
+  }
 }
 
 /**
