@@ -174,7 +174,7 @@ class AmazonProductController extends ControllerBase {
         '#rows' => 30,
       ];
 
-      $dealData = $this->getDealService()->get($asin);
+      $dealData = $this->getDealService()->getDealStore()->getByAsin($asin);
       $dealData = $this->getDealService()->getDealStore()->prettifyDeal($dealData);
 
       $build['deal_info'] = [

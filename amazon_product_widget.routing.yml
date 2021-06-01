@@ -53,3 +53,4 @@ amazon_product_widget.more_info:
     _permission: 'view amazon product data'
   options:
     _admin_route: TRUE
+    no_cache: TRUE
