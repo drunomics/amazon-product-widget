@@ -4,6 +4,7 @@ namespace Drupal\amazon_product_widget;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
  * Class DealStore.
@@ -11,6 +12,8 @@ use Drupal\Core\Database\Connection;
  * @package Drupal\amazon_product_widget
  */
 class DealStore {
+
+  use StringTranslationTrait;
 
   /**
    * The deal database table.
@@ -248,6 +251,20 @@ class DealStore {
   public function getCount() {
     $query = $this->connection->select(self::TABLE, 'ta');
     return $query->countQuery()->execute()->fetchField();
+  }
+
+  /**
+   * Returns an array of all possible deal status values.
+   *
+   * @return array
+   *   Array indexed by deal status, values are text values of the status.
+   */
+  public function statusList() {
+    return [
+      self::DEAL_STATUS_UNKNOWN   => $this->t('Unknown'),
+      self::DEAL_STATUS_AVAILABLE => $this->t('Available'),
+      self::DEAL_STATUS_UPCOMING  => $this->t('Upcoming'),
+    ];
   }
 
 }
