@@ -10,7 +10,6 @@
     }
   ],
   "require": {
-    "drunomics/amazon_paapi": "^1.1",
-    "drupal/core": "8.x"
+    "drunomics/amazon_paapi": "^1.1"
   }
 }
