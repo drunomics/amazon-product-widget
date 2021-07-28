@@ -498,6 +498,7 @@ class ProductService {
           $offer = $item->getOffers()->getListings()[0];
           if ($price = $offer->getPrice()) {
             $item_data['price'] = $price->getAmount();
+            $item_data['last_available_price'] = $price->getAmount();
             $item_data['currency'] = $price->getCurrency();
             $item_data['product_available'] = TRUE;
 
