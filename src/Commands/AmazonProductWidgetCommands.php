@@ -3,9 +3,12 @@
 namespace Drupal\amazon_product_widget\Commands;
 
 use Drupal\amazon_product_widget\DealFeedService;
+use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
+use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
+use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
 use Drush\Commands\DrushCommands;
 
@@ -107,6 +110,9 @@ class AmazonProductWidgetCommands extends DrushCommands {
           $queueWorker->processItem($item->data);
           $queue->deleteItem($item);
         }
+        catch (RequeueException $exception) {
+          $this->io()->writeln("Update limit reached. Run the command again to update more products.");
+        }
         catch (SuspendQueueException $exception) {
           $queue->releaseItem($item);
           break;
@@ -151,12 +157,12 @@ class AmazonProductWidgetCommands extends DrushCommands {
   public function getOverridesForProduct($asin) {
     try {
       $productData = $this->productService->getProductData([$asin]);
-      if (isset($productData[$asin]['overrides'])) {
+      if (isset($productData[$asin]['overrides']) && $productData[$asin]['overrides'] !== FALSE) {
         $this->output()->writeln("The following overrides were found for: $asin");
         $this->output()->writeln(var_export($productData[$asin]['overrides'], TRUE));
       }
       else {
-        $this->output()->writeln("No product with ASIN $asin has been found.");
+        $this->output()->writeln("No overrides for ASIN $asin have been found.");
       }
     }
     catch (\Exception $exception) {
@@ -241,6 +247,36 @@ class AmazonProductWidgetCommands extends DrushCommands {
     $deal = $this->dealFeedService->getDealStore()->prettifyDeal($deal);
     $this->output()->writeln("Deal information for $asin:");
     $this->output()->writeln(var_export($deal, TRUE));
+  }
+
+  /**
+   * Gets product information for the given ASIN.
+   *
+   * @param string $asin
+   *   ASIN.
+   *
+   * @option renew
+   *   Force an update and get the product data drectly from Amazon.
+   *
+   * @command apw:product-info
+   */
+  public function getProductInfo(string $asin, array $options = ['renew' => FALSE]) {
+    try {
+      $productData = $this->productService->getProductData([$asin], $options['renew']);
+      if ($productData[$asin] === FALSE) {
+        $this->io()->writeln("No product information could be retrieved for ASIN $asin.");
+      }
+      else {
+        $this->io()->writeln("Got the following product information for ASIN $asin:");
+        $this->io()->writeln(var_export($productData[$asin], TRUE));
+      }
+    }
+    catch (AmazonApiDisabledException $exception) {
+      $this->io()->error("The Amazon API is disabled by configuration.");
+    }
+    catch (AmazonRequestLimitReachedException $exception) {
+      $this->io()->error("You have reached the Amazon API request limit.");
+    }
   }
 
 }

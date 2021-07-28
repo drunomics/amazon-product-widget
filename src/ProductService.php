@@ -453,6 +453,7 @@ class ProductService {
           'medium_image' => [],
           'large_image' => [],
           'price' => NULL,
+          'last_available_price' => NULL,
           'suggested_price' => NULL,
           'currency' => NULL,
           'manufacturer' => NULL,
@@ -463,6 +464,16 @@ class ProductService {
             'star_rating' => 0,
           ],
         ];
+
+        // Fetch the previous item info (if any) so we can set the
+        // last_available_price.
+        $previousItemInfo = $this->productStore->get($item->getASIN());
+        if ($previousItemInfo['price'] !== NULL) {
+          $item_data['last_available_price'] = $previousItemInfo['price'];
+        }
+        elseif ($previousItemInfo['last_available_price'] !== NULL) {
+          $item_data['last_available_price'] = $previousItemInfo['last_available_price'];
+        }
 
         if ($item->getDetailPageURL()) {
           $item_data['url'] = $item->getDetailPageURL();
@@ -487,6 +498,7 @@ class ProductService {
           $offer = $item->getOffers()->getListings()[0];
           if ($price = $offer->getPrice()) {
             $item_data['price'] = $price->getAmount();
+            $item_data['last_available_price'] = $price->getAmount();
             $item_data['currency'] = $price->getCurrency();
             $item_data['product_available'] = TRUE;
 
@@ -687,6 +699,7 @@ class ProductService {
         '#currency_symbol' => $data['currency_symbol'],
         '#manufacturer' => $data['manufacturer'],
         '#price' => $data['price'],
+        '#last_available_price' => $data['last_available_price'],
         '#suggested_price' => $data['suggested_price'],
         '#is_eligible_for_prime' => $data['is_eligible_for_prime'],
         '#is_search_result_fallback' => $data['is_search_result_fallback'],
@@ -828,6 +841,7 @@ class ProductService {
         'currency_symbol' => $data['currency'],
         'manufacturer' => $data['manufacturer'],
         'price' => !empty($data['price']) ? number_format($data['price'], 2, $decimal_separator, $thousand_separator) : NULL,
+        'last_available_price' => !empty($data['last_available_price']) ? number_format($data['last_available_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'suggested_price' => !empty($data['suggested_price']) && !empty($data['price']) && $data['suggested_price'] != $data['price'] ? number_format($data['suggested_price'], 2, $decimal_separator, $thousand_separator) : NULL,
         'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
         'is_search_result_fallback' => $data['is_search_result_fallback'] ?? FALSE,

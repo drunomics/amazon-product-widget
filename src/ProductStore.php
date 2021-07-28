@@ -30,7 +30,7 @@ class ProductStore extends DatabaseStorage {
   /**
    * TimeInterface.
    *
-   * @var \Drupal\Component\Datetime\TimeInterface 
+   * @var \Drupal\Component\Datetime\TimeInterface
    */
   protected $time;
 
@@ -96,7 +96,7 @@ class ProductStore extends DatabaseStorage {
    *
    * @throws \Exception
    */
-  public function setOverride($key, array $overrides) {
+  public function setOverride(string $key, array $overrides) {
     $this->connection->merge($this->table)
       ->keys([
         'name' => $key,
@@ -145,7 +145,9 @@ class ProductStore extends DatabaseStorage {
       foreach ($keys as $key) {
         if (isset($result[$key])) {
           $values[$key] = $this->serializer->decode($result[$key]->value);
-          $values[$key]['overrides'] = $this->serializer->decode($result[$key]->overrides);
+          if ($overrides = $this->serializer->decode($result[$key]->overrides)) {
+            $values[$key]['overrides'] = $overrides;
+          }
         }
       }
     }

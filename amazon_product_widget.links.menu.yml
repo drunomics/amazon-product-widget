@@ -21,7 +21,7 @@ amazon_product_widget.deal_feed_settings_form:
 
 amazon_product_widget.deal_feed_check_form:
   title: 'Amazon Deal Check'
-  route_name: amazon_product_widget.deal_feed_settings_form
+  route_name: amazon_product_widget.deal_feed_check_form
   description: 'Check deal status.'
   parent: amazon_product_widget.deal_feed_settings_form
   weight: 102
