@@ -6,6 +6,7 @@ use Drupal\amazon_product_widget\DealFeedService;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
+use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
 use Drush\Commands\DrushCommands;
 
@@ -106,6 +107,9 @@ class AmazonProductWidgetCommands extends DrushCommands {
         try {
           $queueWorker->processItem($item->data);
           $queue->deleteItem($item);
+        }
+        catch (RequeueException $exception) {
+          $this->io()->writeln("Update limit reached. Run the command again to update more products.");
         }
         catch (SuspendQueueException $exception) {
           $queue->releaseItem($item);
