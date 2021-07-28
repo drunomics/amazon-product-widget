@@ -846,7 +846,7 @@ class ProductService {
         'is_eligible_for_prime' => $data['is_eligible_for_prime'] ?? FALSE,
         'is_search_result_fallback' => $data['is_search_result_fallback'] ?? FALSE,
         'product_available' => $data['product_available'] ?? FALSE,
-        'overrides' => $data['overrides'],
+        'overrides' => $data['overrides'] ?? FALSE,
         'customer_reviews' => $data['customer_reviews'] ?? $customer_reviews_defaults,
       ];
     }
