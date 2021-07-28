@@ -155,12 +155,12 @@ class AmazonProductWidgetCommands extends DrushCommands {
   public function getOverridesForProduct($asin) {
     try {
       $productData = $this->productService->getProductData([$asin]);
-      if (isset($productData[$asin]['overrides'])) {
+      if (isset($productData[$asin]['overrides']) && $productData[$asin]['overrides'] !== FALSE) {
         $this->output()->writeln("The following overrides were found for: $asin");
         $this->output()->writeln(var_export($productData[$asin]['overrides'], TRUE));
       }
       else {
-        $this->output()->writeln("No product with ASIN $asin has been found.");
+        $this->output()->writeln("No overrides for ASIN $asin have been found.");
       }
     }
     catch (\Exception $exception) {
