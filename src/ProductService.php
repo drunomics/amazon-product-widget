@@ -471,6 +471,9 @@ class ProductService {
         if ($previousItemInfo['price'] !== NULL) {
           $item_data['last_available_price'] = $previousItemInfo['price'];
         }
+        elseif ($previousItemInfo['last_available_price'] !== NULL) {
+          $item_data['last_available_price'] = $previousItemInfo['last_available_price'];
+        }
 
         if ($item->getDetailPageURL()) {
           $item_data['url'] = $item->getDetailPageURL();
