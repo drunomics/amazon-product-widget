@@ -754,7 +754,12 @@ class ProductService {
         }
       }
       else {
-        $valid = amazon_product_widget_validate_product_data($data);
+        if (is_array($data)) {
+          $valid = amazon_product_widget_validate_product_data($data);
+        }
+        else {
+          $valid = FALSE;
+        }
       }
 
       if (!$valid) {
