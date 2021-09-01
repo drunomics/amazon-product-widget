@@ -57,6 +57,10 @@ class ProductUsageService {
       return;
     }
 
+    if ($entity->id() === NULL) {
+      return;
+    }
+    
     $this->purge($entity->id(), $entity->getEntityTypeId());
 
     $productFields = $this->fieldManager->getFieldMapByFieldType('amazon_product_widget_field_type');
