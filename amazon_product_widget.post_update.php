@@ -47,8 +47,8 @@ function amazon_product_widget_post_update_install_unavailable_products_view(&$s
   $source = new FileStorage($configPath);
   /** @var \Drupal\Core\Config\StorageInterface $configStorage */
   $configStorage = \Drupal::service('config.storage');
-  if (!$configStorage->exists('views.view.unavailable_products')) {
-    $configStorage->write('views.view.unavailable_products', $source->read('views.view.amazon_product_widget_unavailable_products'));
+  if (!$configStorage->exists('views.view.amazon_product_widget_unavailable_products')) {
+    $configStorage->write('views.view.amazon_product_widget_unavailable_products', $source->read('views.view.amazon_product_widget_unavailable_products'));
   }
 
   // Create a menu link.
