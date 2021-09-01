@@ -59,7 +59,7 @@ function amazon_product_widget_post_update_install_unavailable_products_view(&$s
 
   if (!($menuLink = reset($menuEntries))) {
     MenuLinkContent::create([
-      'link'      => ['uri' => '/admin/config/services/amazon-product-widget/unavailable-products'],
+      'link'      => ['uri' => 'internal:/admin/config/services/amazon-product-widget/unavailable-products'],
       'title'     => 'Unavailable Products',
       'menu_name' => 'admin',
       'parent'    => 'amazon_product_widget.settings_form',
