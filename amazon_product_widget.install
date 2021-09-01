@@ -172,8 +172,8 @@ function amazon_product_widget_uninstall() {
     $configStorage->delete('views.view.amazon_product_widget_product_overview');
   }
 
-  if ($configStorage->exists('views.viewamazon_product_widget_unavailable')) {
-    $configStorage->delete('amazon_product_widget_unavailable');
+  if ($configStorage->exists('views.viewamazon_product_widget_unavailable_products')) {
+    $configStorage->delete('amazon_product_widget_unavailable_products');
   }
 }
 

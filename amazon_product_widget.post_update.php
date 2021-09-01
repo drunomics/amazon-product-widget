@@ -63,7 +63,7 @@ function amazon_product_widget_post_update_install_unavailable_products_view(&$s
       'title'     => 'Unavailable Products',
       'menu_name' => 'admin',
       'parent'    => 'amazon_product_widget.settings_form',
-      'weight'    => 102,
+      'weight'    => 103,
     ])->save();
   }
 }

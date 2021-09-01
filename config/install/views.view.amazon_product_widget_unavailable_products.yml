@@ -3,7 +3,7 @@ dependencies:
   module:
     - amazon_product_widget
     - user
-id: amazon_product_widget_unavailable
+id: amazon_product_widget_unavailable_products
 label: 'Unavailable Products'
 module: views
 description: ''
