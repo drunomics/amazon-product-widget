@@ -745,7 +745,15 @@ class ProductService {
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
     foreach ($product_data as $asin => $data) {
-      $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
+      $callbackResults = [];
+
+      if ($data !== FALSE) {
+        $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
+        $this->productStore->setAvailable($asin, TRUE);
+      }
+      else {
+        $this->productStore->setAvailable($asin, FALSE);
+      }
 
       if (count($callbackResults)) {
         $valid = TRUE;

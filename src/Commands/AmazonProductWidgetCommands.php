@@ -2,10 +2,13 @@
 
 namespace Drupal\amazon_product_widget\Commands;
 
+use Drupal\amazon_product_widget\BatchProductMapUpdateService;
 use Drupal\amazon_product_widget\DealFeedService;
 use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\ProductService;
+use Drupal\amazon_product_widget\ProductUsageService;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
 use Drupal\Core\Queue\RequeueException;
@@ -51,6 +54,20 @@ class AmazonProductWidgetCommands extends DrushCommands {
   protected $dealFeedService;
 
   /**
+   * ProductUsageService.
+   *
+   * @var \Drupal\amazon_product_widget\ProductUsageService
+   */
+  protected $productUsage;
+
+  /**
+   * Entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * AmazonProductWidgetCommands constructor.
    *
    * @param \Drupal\amazon_product_widget\ProductService $productService
@@ -61,13 +78,17 @@ class AmazonProductWidgetCommands extends DrushCommands {
    *   QueueWorkerManagerInterface.
    * @param \Drupal\amazon_product_widget\DealFeedService $dealFeedService
    *   Deal feed service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   Entity type manager.
    */
-  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker, DealFeedService $dealFeedService) {
+  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker, DealFeedService $dealFeedService, ProductUsageService $productUsage, EntityTypeManagerInterface $entityTypeManager) {
     parent::__construct();
     $this->productService = $productService;
     $this->queue = $queue;
     $this->queueWorker = $queueWorker;
     $this->dealFeedService = $dealFeedService;
+    $this->productUsage = $productUsage;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -276,6 +297,43 @@ class AmazonProductWidgetCommands extends DrushCommands {
     }
     catch (AmazonRequestLimitReachedException $exception) {
       $this->io()->error("You have reached the Amazon API request limit.");
+    }
+  }
+
+  /**
+   * Updates the Node - ASIN map.
+   *
+   * @command apw:update-asin-map
+   */
+  public function updateAsinMap() {
+    $batch = [
+      'title'        => t('Updating Product Node mapping'),
+      'init_message' => t('Preparing to sync @count nodes...'),
+      'finished'     => [BatchProductMapUpdateService::class, 'finished'],
+    ];
+
+    try {
+      $nodeIds = $this->entityTypeManager->getStorage('node')
+        ->getQuery()
+        ->execute();
+      $nodeIdsChunked = array_chunk($nodeIds, 20);
+      $nodeIdsChunked = [[31924]];
+      foreach ($nodeIdsChunked as $chunk) {
+        $batch['operations'][] = [
+          [BatchProductMapUpdateService::class, 'update'], [
+            $chunk,
+          ],
+        ];
+      }
+
+      batch_set($batch);
+      $batch =& batch_get();
+      $batch['progressive'] = FALSE;
+
+      drush_backend_batch_process();
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
     }
   }
 

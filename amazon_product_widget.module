@@ -5,6 +5,8 @@
  * Module file.
  */
 
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Site\Settings;
 
 /**
@@ -208,4 +210,13 @@ function amazon_product_widget_validate_product_data(array $data) {
     return TRUE;
   }
   return FALSE;
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function amazon_product_widget_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  /** @var \Drupal\amazon_product_widget\ProductUsageService $productUsage */
+  $productUsage = \Drupal::service('amazon_product_widget.usage');
+  $productUsage->update($entity);
 }

@@ -40,6 +40,12 @@ function amazon_product_widget_schema() {
         'description' => 'Stores overrides for amazon product widget',
         'not null' => FALSE,
       ],
+      'available' => [
+        'description' => 'Represents product availability',
+        'type' => 'int',
+        'size' => 'tiny',
+        'default' => 0,
+      ],
       'renewal' => [
         'description' => 'The time since Unix epoch in seconds when this item expires.',
         'type' => 'int',
@@ -68,7 +74,6 @@ function amazon_product_widget_schema() {
         'description' => 'UNIX timestamp when this deal was created.',
         'type' => 'int',
         'not null' => TRUE,
-        'default' => 0,
         'unsigned' => TRUE,
       ],
 
@@ -122,6 +127,30 @@ function amazon_product_widget_schema() {
     ],
   ];
 
+  $schema['amazon_product_widget_asin_map'] = [
+    'description' => 'Stores ASINs that are used in entities.',
+    'fields' => [
+      'entity_id' => [
+        'description' => 'Entity ID',
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+      ],
+      'entity_type' => [
+        'description' => 'Entity type',
+        'type' => 'varchar_ascii',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'asin' => [
+        'description' => 'ASIN',
+        'type' => 'varchar_ascii',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+    ],
+  ];
+
   return $schema;
 }
 
@@ -141,6 +170,10 @@ function amazon_product_widget_uninstall() {
   $configStorage = \Drupal::service('config.storage');
   if ($configStorage->exists('views.view.amazon_product_widget_product_overview')) {
     $configStorage->delete('views.view.amazon_product_widget_product_overview');
+  }
+
+  if ($configStorage->exists('views.viewamazon_product_widget_unavailable')) {
+    $configStorage->delete('amazon_product_widget_unavailable');
   }
 }
 
@@ -189,5 +222,32 @@ function amazon_product_widget_update_8003() {
   $schema = amazon_product_widget_schema();
   if (!$database->schema()->tableExists('amazon_product_widget_deal_feed')) {
     $database->schema()->createTable('amazon_product_widget_deal_feed', $schema['amazon_product_widget_deal_feed']);
+  }
+}
+
+/**
+ * Create 'amazon_product_widget_asin_map' database table.
+ */
+function amazon_product_widget_update_8004() {
+  $database = \Drupal::database();
+  $schema = amazon_product_widget_schema();
+  if (!$database->schema()->tableExists('amazon_product_widget_asin_map')) {
+    $database->schema()->createTable('amazon_product_widget_asin_map', $schema['amazon_product_widget_asin_map']);
+  }
+
+  $availabilitySchema = [
+    'description' => 'Represents product availability',
+    'type' => 'int',
+    'size' => 'tiny',
+    'default' => 0,
+  ];
+
+  $database = \Drupal::database();
+  if (!$database->schema()->fieldExists('amazon_product_widget_key_value', 'available')) {
+    $database->schema()->addField(
+      'amazon_product_widget_key_value',
+      'available',
+      $availabilitySchema
+    );
   }
 }
