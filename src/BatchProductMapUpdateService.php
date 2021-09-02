@@ -14,10 +14,12 @@ class BatchProductMapUpdateService {
    *
    * @param array $nodeIds
    *   The IDs of the nodes to update.
+   * @param int $total
+   *   Total number of nodes to process.
    * @param $context
    *   The context.
    */
-  public static function update(array $nodeIds, &$context) {
+  public static function update(array $nodeIds, int $total, &$context) {
     $entityTypeManager = \Drupal::entityTypeManager();
     /** @var \Drupal\amazon_product_widget\ProductUsageService $usageService */
     $usageService = \Drupal::service('amazon_product_widget.usage');
@@ -31,6 +33,11 @@ class BatchProductMapUpdateService {
           continue;
         }
         $usageService->update($node);
+        $context['results']['processed'] += 1;
+        $context['message'] = t('Processed @count out of a total of @total nodes.', [
+          '@count' => $context['results']['processed'],
+          '@total' => $total,
+        ]);
       }
     }
     catch (\Exception $exception) {
@@ -49,5 +56,12 @@ class BatchProductMapUpdateService {
    *   Operations.
    */
   public static function finish(bool $success, array $results, array $operations) {
+    /** @var \Drupal\Core\Messenger\MessengerInterface $messenger */
+    $messenger = \Drupal::messenger();
+    if ($success) {
+      $messenger->addMessage(t('Successfully processed @count items.', [
+        '@count' => $results['processed'],
+      ]));
+    }
   }
 }

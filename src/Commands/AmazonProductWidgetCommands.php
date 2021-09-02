@@ -316,12 +316,13 @@ class AmazonProductWidgetCommands extends DrushCommands {
       $nodeIds = $this->entityTypeManager->getStorage('node')
         ->getQuery()
         ->execute();
+      $totalNodes = count($nodeIds  );
       $nodeIdsChunked = array_chunk($nodeIds, 20);
-      $nodeIdsChunked = [[31924]];
       foreach ($nodeIdsChunked as $chunk) {
         $batch['operations'][] = [
           [BatchProductMapUpdateService::class, 'update'], [
             $chunk,
+            $totalNodes,
           ],
         ];
       }

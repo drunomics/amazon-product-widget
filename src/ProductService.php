@@ -201,7 +201,7 @@ class ProductService {
    * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
-  public function getProductData(array $asins, $renew = FALSE) {
+  public function getProductData(array $asins, bool $renew = FALSE) : array {
     $asins = array_unique($asins);
     $asins = array_filter($asins);
 

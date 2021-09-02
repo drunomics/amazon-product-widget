@@ -7,6 +7,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
  * Allows for adding or deleting product usages.
@@ -30,16 +31,26 @@ class ProductUsageService {
   protected $fieldManager;
 
   /**
+   * Module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * ProductUsageService constructor.
    *
    * @param \Drupal\Core\Database\Connection $database
    *   Database connection.
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $fieldManager
    *   EntityFieldManager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   Module handler.
    */
-  public function __construct(Connection $database, EntityFieldManagerInterface $fieldManager) {
+  public function __construct(Connection $database, EntityFieldManagerInterface $fieldManager, ModuleHandlerInterface $moduleHandler) {
     $this->database = $database;
     $this->fieldManager = $fieldManager;
+    $this->moduleHandler = $moduleHandler;
   }
 
   /**
@@ -57,6 +68,8 @@ class ProductUsageService {
       return;
     }
 
+    // MenuLinkEntity returns NULL on call to $entity->id() so we check here to
+    // be sure.
     if ($entity->id() === NULL) {
       return;
     }
@@ -66,7 +79,14 @@ class ProductUsageService {
     $productFields = $this->fieldManager->getFieldMapByFieldType('amazon_product_widget_field_type');
     $entityFields = $entity->getFieldDefinitions();
 
+    $hookAsins = $this->moduleHandler->invokeAll('amazon_product_widget_alter_asin_map', [$entity]);
+    $asins = [];
     foreach ($entityFields as $fieldName => $definition) {
+      $targetType = $definition->getFieldStorageDefinition()->getSetting('target_type');
+      if (FALSE === array_key_exists($targetType, $productFields)) {
+        continue;
+      }
+
       if ($definition->getType() === 'amazon_product_widget_field_type') {
         try {
           /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $productField */
@@ -75,15 +95,13 @@ class ProductUsageService {
             continue;
           }
 
-          $asins = $productField->getAsins();
-          $this->insert($entity->id(), $entity->getEntityTypeId(), $asins);
+          $asins = array_merge($asins, $productField->getAsins());
         }
         catch (\Exception $exception) {
           watchdog_exception('amazon_product_widget', $exception);
         }
       }
-
-      if ($definition->getType() === 'entity_reference_revisions') {
+      elseif ($definition->getType() === 'entity_reference_revisions') {
         /** @var \Drupal\paragraphs\ParagraphInterface $paragraphField */
         $paragraphField = $entity->get($fieldName);
         if (!$paragraphField) {
@@ -102,9 +120,7 @@ class ProductUsageService {
                 if (!$productField instanceof AmazonProductField) {
                   continue;
                 }
-
-                $asins = $productField->getAsins();
-                $this->insert($entity->id(), $entity->getEntityTypeId(), $asins);
+                $asins = array_merge($asins, $productField->getAsins());
               }
               catch (\Exception $exception) {
                 watchdog_exception('amazon_product_widget', $exception);
@@ -114,6 +130,10 @@ class ProductUsageService {
         }
       }
     }
+
+    $asins = array_merge($asins, $hookAsins);
+    $asins = array_unique($asins);
+    $this->insert($entity->id(), $entity->getEntityTypeId(), $asins);
   }
 
   /**
@@ -127,7 +147,6 @@ class ProductUsageService {
    *   The ASINs.
    */
   private function insert(int $entityId, string $entityType, array $asins) {
-    $asins = array_unique($asins);
     $query = $this->database->insert('amazon_product_widget_asin_map')
       ->fields(['entity_id', 'entity_type', 'asin']);
     foreach ($asins as $asin) {
@@ -170,7 +189,7 @@ class ProductUsageService {
    * @return array
    *   The unavailable ASINs.
    */
-  public function getUnavailableAsinsForEntity(EntityInterface $entity) {
+  public function getUnavailableAsinsForEntity(EntityInterface $entity) : array {
     $entityType = $entity->getEntityTypeId();
     $entityId   = $entity->id();
 
@@ -187,5 +206,46 @@ class ProductUsageService {
     }, $unavailableAsins);
 
     return array_unique($unavailableAsins);
+  }
+
+  /**
+   * Returns IDs of entities that contain the given ASIN in the product field.
+   *
+   * @param string $asin
+   *   The ASIN.
+   *
+   * @return array
+   *   Returns an array with entity IDs keyed by entity type.
+   */
+  public function getEntitiesByAsin(string $asin) : array {
+    $rows = $this->database->select('amazon_product_widget_asin_map', 'am')
+      ->fields('am', ['entity_type', 'entity_id'])
+      ->condition('asin', $asin)
+      ->execute()
+      ->fetchAllKeyed();
+
+    return array_unique($rows);
+  }
+
+  /**
+   * Returns the ASINs contained within the given entity.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to search.
+   *
+   * @return array
+   *   Returns an array of ASINs.
+   */
+  public function getAsinsByEntity(EntityInterface $entity) : array {
+    $rows = $this->database->select('amazon_product_widget_asin_map', 'am')
+      ->fields('am', ['entity_id'])
+      ->condition('entity_id', $entity->id())
+      ->condition('entity_type', $entity->getEntityTypeId())
+      ->execute()
+      ->fetchAll();
+
+    return array_unique(array_map(function($element) {
+      return $element->entity_id;
+    }, $rows));
   }
 }

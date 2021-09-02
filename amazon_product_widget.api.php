@@ -6,6 +6,7 @@
  */
 
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\node\NodeInterface;
 
 /**
@@ -34,4 +35,20 @@ function hook_amazon_product_widget_alter_product_data(array &$products_containe
  */
 function hook_amazon_product_widget_alter_validate_product_data(AmazonProductField $product_field, array $product_data) {
   return amazon_product_widget_validate_product_data($product_data);
+}
+
+/**
+ * Alter ASIN map.
+ *
+ * Allows you to alter the ASINs returned for the entity. This could be useful
+ * if they are stored in a different place than the AmazonProductField.
+ *
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity that is being searched.
+ *
+ * @return array
+ *   Array of ASINs that were found in the entity. Can be empty.
+ */
+function hook_amazon_product_widget_alter_asin_map(EntityInterface $entity) {
+  return [];
 }
