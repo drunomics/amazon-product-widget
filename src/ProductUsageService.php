@@ -74,8 +74,6 @@ class ProductUsageService {
       return;
     }
 
-    $this->purge($entity->id(), $entity->getEntityTypeId());
-
     $productFields = $this->fieldManager->getFieldMapByFieldType('amazon_product_widget_field_type');
     $entityFields = $entity->getFieldDefinitions();
 
@@ -101,22 +99,26 @@ class ProductUsageService {
           watchdog_exception('amazon_product_widget', $exception);
         }
       }
-      elseif ($definition->getType() === 'entity_reference_revisions') {
-        /** @var \Drupal\paragraphs\ParagraphInterface $paragraphField */
-        $paragraphField = $entity->get($fieldName);
-        if (!$paragraphField) {
+      elseif ($definition->getType() === 'entity_reference_revisions' || $definition->getType() === 'entity_reference') {
+        /** @var \Drupal\Core\Entity\EntityInterface $referenceField */
+        $referenceField = $entity->get($fieldName);
+        if (!$referenceField) {
           continue;
         }
-        $paragraphs = $paragraphField->referencedEntities();
+        $referencedEntities = $referenceField->referencedEntities();
 
-        /** @var \Drupal\paragraphs\ParagraphInterface $paragraph */
-        foreach ($paragraphs as $paragraph) {
-          $fields = $paragraph->getFieldDefinitions();
+        /** @var \Drupal\Core\Entity\FieldableEntityInterface $referencedEntity */
+        foreach ($referencedEntities as $referencedEntity) {
+          if (!$referencedEntity instanceof FieldableEntityInterface) {
+            continue;
+          }
+
+          $fields = $referencedEntity->getFieldDefinitions();
           foreach ($fields as $field) {
             if ($field->getType() === 'amazon_product_widget_field_type') {
               try {
                 /** @var \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $productField */
-                $productField = $paragraph->get($field->getName())->first();
+                $productField = $referencedEntity->get($field->getName())->first();
                 if (!$productField instanceof AmazonProductField) {
                   continue;
                 }
@@ -133,7 +135,17 @@ class ProductUsageService {
 
     $asins = array_merge($asins, $hookAsins);
     $asins = array_unique($asins);
-    $this->insert($entity->id(), $entity->getEntityTypeId(), $asins);
+    $oldAsins = array_unique($this->getAsinsByEntity($entity));
+
+    // Before purging and changing the ASIN map, we make sure the ASINs have
+    // changed for that entity.
+    sort($asins);
+    sort($oldAsins);
+
+    if ($asins !== $oldAsins) {
+      $this->purge($entity->id(), $entity->getEntityTypeId());
+      $this->insert($entity->id(), $entity->getEntityTypeId(), $asins);
+    }
   }
 
   /**
@@ -238,14 +250,26 @@ class ProductUsageService {
    */
   public function getAsinsByEntity(EntityInterface $entity) : array {
     $rows = $this->database->select('amazon_product_widget_asin_map', 'am')
-      ->fields('am', ['entity_id'])
+      ->fields('am', ['asin'])
       ->condition('entity_id', $entity->id())
       ->condition('entity_type', $entity->getEntityTypeId())
       ->execute()
       ->fetchAll();
 
     return array_unique(array_map(function($element) {
-      return $element->entity_id;
+      return $element->asin;
     }, $rows));
+  }
+
+  /**
+   * Optimizes the asin map table.
+   */
+  public function optimize() {
+    try {
+      $this->database->query('OPTIMIZE TABLE amazon_product_widget_asin_map');
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
+    }
   }
 }

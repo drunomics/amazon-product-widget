@@ -8,6 +8,7 @@ use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\ProductService;
 use Drupal\amazon_product_widget\ProductUsageService;
+use Drupal\Core\Entity\EntityBase;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
@@ -316,7 +317,7 @@ class AmazonProductWidgetCommands extends DrushCommands {
       $nodeIds = $this->entityTypeManager->getStorage('node')
         ->getQuery()
         ->execute();
-      $totalNodes = count($nodeIds  );
+      $totalNodes = count($nodeIds);
       $nodeIdsChunked = array_chunk($nodeIds, 20);
       foreach ($nodeIdsChunked as $chunk) {
         $batch['operations'][] = [
@@ -338,4 +339,59 @@ class AmazonProductWidgetCommands extends DrushCommands {
     }
   }
 
+  /**
+   * Gets products in the given entity.
+   *
+   * @command apw:entity-products
+   *
+   * @param string $entityId
+   *   The ID of the entity.
+   * @param string $entityType
+   *   (optional) The entity type. Defaults to 'node'.
+   */
+  public function getProductsForEntity(string $entityId, string $entityType = 'node') {
+    $storage = NULL;
+    try {
+      $storage = $this->entityTypeManager->getStorage($entityType);
+    }
+    catch (\Exception $exception) {
+      $this->io()->error("No storage class found for '$entityType'.");
+      return;
+    }
+
+    $entity = $storage->load($entityId);
+    if (!$entity) {
+      $this->io()->error("Could not load entity with ID: $entityId");
+      return;
+    }
+
+    $asins = $this->productUsage->getAsinsByEntity($entity);
+    if (empty($asins)) {
+      $this->io()->writeln("No products found in this entity.");
+    }
+    else {
+      $this->io()->writeln("The following products were found:");
+      foreach ($asins as $asin) {
+        $this->io()->writeln("- $asin");
+      }
+    }
+  }
+
+  /**
+   * Returns entity IDs and types that contain the given product.
+   *
+   * @param string $asin
+   *   The ASIN of the product.
+   *
+   * @command apw:product-entities
+   */
+  public function getEntitiesForProduct(string $asin) {
+    $entities = $this->productUsage->getEntitiesByAsin($asin);
+    $header = ['entity_type', 'entity_id'];
+    $rows = [];
+    foreach ($entities as $type => $id) {
+      $rows[] = [$type, $id];
+    }
+    $this->io()->table($header, $rows);
+  }
 }

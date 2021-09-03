@@ -749,10 +749,6 @@ class ProductService {
 
       if ($data !== FALSE) {
         $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
-        $this->productStore->setAvailable($asin, TRUE);
-      }
-      else {
-        $this->productStore->setAvailable($asin, FALSE);
       }
 
       if (count($callbackResults)) {
@@ -768,6 +764,13 @@ class ProductService {
         else {
           $valid = FALSE;
         }
+      }
+
+      if ($valid) {
+        $this->productStore->setAvailable($asin, TRUE);
+      }
+      else {
+        $this->productStore->setAvailable($asin, FALSE);
       }
 
       if (!$valid) {

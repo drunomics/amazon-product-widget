@@ -57,6 +57,7 @@ function amazon_product_widget_schema() {
     'indexes' => [
       'all' => ['name', 'collection', 'renewal'],
       'renewal' => ['renewal'],
+      'name_available' => ['name', 'available'],
     ],
   ];
 
@@ -148,6 +149,10 @@ function amazon_product_widget_schema() {
         'length' => 16,
         'not null' => TRUE,
       ],
+    ],
+    'indexes' => [
+      'asin' => ['asin'],
+      'type_id' => ['entity_id', 'entity_type'],
     ],
   ];
 

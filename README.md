@@ -29,6 +29,7 @@ strategy.
       * [Basic commands](#basic-commands)
       * [Override commands](#override-commands)
       * [Deals commands](#deals-commands)
+      * [Usage commands](#usage-commands)
     * [Hooks](#hooks)
     * [Maintainers](#maintainers)
 
@@ -208,6 +209,18 @@ file will be downloaded from the Amazon API (if configured).
 * `apw:deals:info <ASIN>`
 
 Gets Deal information for a particular ASIN.
+
+### Usage commands
+
+The following commands are available to get information about product usage.
+
+* `apw:entity-products <entity_id> <entity_type>`
+
+Returns products that are contained in the given entity. `<entity_type>` is optional and defaults to 'node'.
+
+* `apw:product-entities <ASIN>`
+
+Returns the entity ID and type that contain the given product (ASIN).
 
 ## Hooks
 
