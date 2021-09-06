@@ -90,7 +90,7 @@ function amazon_product_widget_views_data() {
     'title' => t('Available'),
     'help'  => t('Whether this product is available.'),
     'field' => [
-      'id' => 'standard',
+      'id' => 'amazon_product_widget_product_available',
     ],
     'filter' => [
       'id' => 'boolean',
