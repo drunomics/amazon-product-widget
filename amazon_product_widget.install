@@ -261,8 +261,8 @@ function amazon_product_widget_update_8004() {
     $database->schema()->addIndex('amazon_product_widget_key_value', 'name_available', [
       'name',
       'available',
-    ], $schema);
+    ], $schema['amazon_product_widget_key_value']);
   }
 
-  $database->query("UPDATE TABLE {amazon_product_widget_key_value} SET available = 1 WHERE collection = 'products'");
+  $database->query("UPDATE {amazon_product_widget_key_value} SET available = 1 WHERE collection = 'products'");
 }
