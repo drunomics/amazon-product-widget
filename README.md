@@ -238,6 +238,14 @@ Allows you to validate if the product is valid. This allows you to show the amaz
 product is not available, then you can, for example, show your own custom message instead of the product box being
 absent altogether.
 
+`hook_amazon_product_widget_get_custom_asin_map(FieldableEntityInterface $entity)`
+
+Whenever an entity is saved, an ASIN map in the database gets updated, so we always know which
+entity contains which products (ASINs) and which product belongs to which entities.
+
+If you have products (ASINs) stored in a custom field in an entity, you can extract and
+return them here, they will be added to the ASIN map for that entity.
+
 ## Maintainers
 
  * Mathias (mbm80) - https://www.drupal.org/u/mbm80

@@ -77,7 +77,7 @@ class ProductUsageService {
     $productFields = $this->fieldManager->getFieldMapByFieldType('amazon_product_widget_field_type');
     $entityFields = $entity->getFieldDefinitions();
 
-    $hookAsins = $this->moduleHandler->invokeAll('amazon_product_widget_alter_asin_map', [$entity]);
+    $hookAsins = $this->moduleHandler->invokeAll('amazon_product_widget_get_custom_asin_map', [$entity]);
     $asins = [];
     foreach ($entityFields as $fieldName => $definition) {
       $targetType = $definition->getFieldStorageDefinition()->getSetting('target_type');

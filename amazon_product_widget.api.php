@@ -49,6 +49,6 @@ function hook_amazon_product_widget_alter_validate_product_data(AmazonProductFie
  * @return array
  *   Array of ASINs that were found in the entity. Can be empty.
  */
-function hook_amazon_product_widget_alter_asin_map(FieldableEntityInterface $entity) {
+function hook_amazon_product_widget_get_custom_asin_map(FieldableEntityInterface $entity) {
   return [];
 }

@@ -75,6 +75,7 @@ function amazon_product_widget_schema() {
         'description' => 'UNIX timestamp when this deal was created.',
         'type' => 'int',
         'not null' => TRUE,
+        'default' => 0,
         'unsigned' => TRUE,
       ],
 
@@ -255,4 +256,13 @@ function amazon_product_widget_update_8004() {
       $availabilitySchema
     );
   }
+
+  if (!$database->schema()->indexExists('amazon_product_widget_key_value', 'name_available')) {
+    $database->schema()->addIndex('amazon_product_widget_key_value', 'name_available', [
+      'name',
+      'available',
+    ], $schema);
+  }
+
+  $database->query("UPDATE TABLE {amazon_product_widget_key_value} SET available = 1 WHERE collection = 'products'");
 }
