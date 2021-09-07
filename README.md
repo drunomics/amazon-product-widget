@@ -29,6 +29,7 @@ strategy.
       * [Basic commands](#basic-commands)
       * [Override commands](#override-commands)
       * [Deals commands](#deals-commands)
+      * [Usage commands](#usage-commands)
     * [Hooks](#hooks)
     * [Maintainers](#maintainers)
 
@@ -209,6 +210,18 @@ file will be downloaded from the Amazon API (if configured).
 
 Gets Deal information for a particular ASIN.
 
+### Usage commands
+
+The following commands are available to get information about product usage.
+
+* `apw:entity-products <entity_id> <entity_type>`
+
+Returns products that are contained in the given entity. `<entity_type>` is optional and defaults to 'node'.
+
+* `apw:product-entities <ASIN>`
+
+Returns the entity ID and type that contain the given product (ASIN).
+
 ## Hooks
 
 The module provides the following hooks:
@@ -224,6 +237,14 @@ being displayed on. This can also be NULL in the case where the field is attache
 Allows you to validate if the product is valid. This allows you to show the amazon product widget even though the
 product is not available, then you can, for example, show your own custom message instead of the product box being
 absent altogether.
+
+`hook_amazon_product_widget_get_custom_asin_map(FieldableEntityInterface $entity)`
+
+Whenever an entity is saved, an ASIN map in the database gets updated, so we always know which
+entity contains which products (ASINs) and which product belongs to which entities.
+
+If you have products (ASINs) stored in a custom field in an entity, you can extract and
+return them here, they will be added to the ASIN map for that entity.
 
 ## Maintainers
 

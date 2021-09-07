@@ -5,6 +5,8 @@
  * Module file.
  */
 
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Site\Settings;
 
 /**
@@ -77,6 +79,7 @@ function amazon_product_widget_cron() {
   }
 
   _amazon_product_widget_deals_cron_update();
+  _amazon_product_widget_asin_map_cron_optimize();
 }
 
 /**
@@ -182,6 +185,9 @@ function _amazon_product_widget_deals_cron_update() {
   }
 }
 
+/**
+ * Resets the deal cron state.
+ */
 function _amazon_product_widget_deals_reset_state() {
   $state = \Drupal::state();
 
@@ -199,7 +205,7 @@ function _amazon_product_widget_deals_reset_state() {
  * @return bool
  *   The validity.
  */
-function amazon_product_widget_validate_product_data(array $data) {
+function amazon_product_widget_validate_product_data(array $data) : bool {
   if (!empty($data['medium_image'])
     && !empty($data['large_image'])
     && !empty($data['title'])
@@ -208,4 +214,31 @@ function amazon_product_widget_validate_product_data(array $data) {
     return TRUE;
   }
   return FALSE;
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function amazon_product_widget_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  /** @var \Drupal\amazon_product_widget\ProductUsageService $productUsage */
+  $productUsage = \Drupal::service('amazon_product_widget.usage');
+  $productUsage->update($entity);
+}
+
+/**
+ * Optimizes the ASIN map table weekly.
+ */
+function _amazon_product_widget_asin_map_cron_optimize() {
+  $state = \Drupal::state();
+  /** @var \Drupal\amazon_product_widget\ProductUsageService $usageService */
+  $usageService = \Drupal::service('amazon_product_widget.usage');
+  $currentTime = time();
+  $lastRunTime = $state->get('amazon_product_widget.asin_map_last_optimize', 0);
+  $difference = $currentTime - $lastRunTime;
+
+  // Optimize ASIN map table on a weekly basis.
+  if ($difference >= (60 * 60 * 24 * 7)) {
+    $usageService->optimize();
+    $state->set('amazon_product_widget.asin_map_last_optimize', time());
+  }
 }

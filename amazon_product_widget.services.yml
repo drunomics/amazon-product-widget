@@ -25,3 +25,6 @@ services:
     class: Drupal\Core\Queue\QueueInterface
     factory: queue:get
     arguments: ['amazon_product_widget.product_data_update']
+  amazon_product_widget.usage:
+    class: Drupal\amazon_product_widget\ProductUsageService
+    arguments: ['@database', '@entity_field.manager', '@module_handler']

@@ -201,7 +201,7 @@ class ProductService {
    * @throws \Drupal\amazon_product_widget\Exception\AmazonApiDisabledException
    * @throws \Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException
    */
-  public function getProductData(array $asins, $renew = FALSE) {
+  public function getProductData(array $asins, bool $renew = FALSE) : array {
     $asins = array_unique($asins);
     $asins = array_filter($asins);
 
@@ -745,7 +745,11 @@ class ProductService {
     // Replace unavailable products with ones from the search term fallback.
     $replace = [];
     foreach ($product_data as $asin => $data) {
-      $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
+      $callbackResults = [];
+
+      if ($data !== FALSE) {
+        $callbackResults = $this->moduleHandler->invokeAll('amazon_product_widget_alter_validate_product_data', [$product_field, $data]);
+      }
 
       if (count($callbackResults)) {
         $valid = TRUE;
@@ -760,6 +764,13 @@ class ProductService {
         else {
           $valid = FALSE;
         }
+      }
+
+      if ($valid) {
+        $this->productStore->setAvailable($asin, TRUE);
+      }
+      else {
+        $this->productStore->setAvailable($asin, FALSE);
       }
 
       if (!$valid) {

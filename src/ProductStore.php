@@ -306,4 +306,19 @@ class ProductStore extends DatabaseStorage {
     ];
   }
 
+  /**
+   * Sets the availability column for the given ASIN.
+   *
+   * @param string $asin
+   *   The ASIN.
+   * @param bool $available
+   *   Boolean indicating whether the product is available.
+   */
+  public function setAvailable(string $asin, bool $available) {
+    $this->connection->query('UPDATE {' . $this->connection->escapeTable($this->table) . '} SET available = :available WHERE name = :asin', [
+      ':available' => intval($available),
+      ':asin'      => $asin,
+    ]);
+  }
+
 }

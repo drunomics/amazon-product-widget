@@ -2,10 +2,14 @@
 
 namespace Drupal\amazon_product_widget\Commands;
 
+use Drupal\amazon_product_widget\BatchProductMapUpdateService;
 use Drupal\amazon_product_widget\DealFeedService;
 use Drupal\amazon_product_widget\Exception\AmazonApiDisabledException;
 use Drupal\amazon_product_widget\Exception\AmazonRequestLimitReachedException;
 use Drupal\amazon_product_widget\ProductService;
+use Drupal\amazon_product_widget\ProductUsageService;
+use Drupal\Core\Entity\EntityBase;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerManagerInterface;
 use Drupal\Core\Queue\RequeueException;
@@ -51,6 +55,20 @@ class AmazonProductWidgetCommands extends DrushCommands {
   protected $dealFeedService;
 
   /**
+   * ProductUsageService.
+   *
+   * @var \Drupal\amazon_product_widget\ProductUsageService
+   */
+  protected $productUsage;
+
+  /**
+   * Entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * AmazonProductWidgetCommands constructor.
    *
    * @param \Drupal\amazon_product_widget\ProductService $productService
@@ -61,13 +79,17 @@ class AmazonProductWidgetCommands extends DrushCommands {
    *   QueueWorkerManagerInterface.
    * @param \Drupal\amazon_product_widget\DealFeedService $dealFeedService
    *   Deal feed service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   Entity type manager.
    */
-  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker, DealFeedService $dealFeedService) {
+  public function __construct(ProductService $productService, QueueFactory $queue, QueueWorkerManagerInterface $queueWorker, DealFeedService $dealFeedService, ProductUsageService $productUsage, EntityTypeManagerInterface $entityTypeManager) {
     parent::__construct();
     $this->productService = $productService;
     $this->queue = $queue;
     $this->queueWorker = $queueWorker;
     $this->dealFeedService = $dealFeedService;
+    $this->productUsage = $productUsage;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -279,4 +301,97 @@ class AmazonProductWidgetCommands extends DrushCommands {
     }
   }
 
+  /**
+   * Updates the Node - ASIN map.
+   *
+   * @command apw:update-asin-map
+   */
+  public function updateAsinMap() {
+    $batch = [
+      'title'        => t('Updating Product Node mapping'),
+      'init_message' => t('Preparing to sync @count nodes...'),
+      'finished'     => [BatchProductMapUpdateService::class, 'finished'],
+    ];
+
+    try {
+      $nodeIds = $this->entityTypeManager->getStorage('node')
+        ->getQuery()
+        ->execute();
+      $totalNodes = count($nodeIds);
+      $nodeIdsChunked = array_chunk($nodeIds, 20);
+      foreach ($nodeIdsChunked as $chunk) {
+        $batch['operations'][] = [
+          [BatchProductMapUpdateService::class, 'update'], [
+            $chunk,
+            $totalNodes,
+          ],
+        ];
+      }
+
+      batch_set($batch);
+      $batch =& batch_get();
+      $batch['progressive'] = FALSE;
+
+      drush_backend_batch_process();
+    }
+    catch (\Exception $exception) {
+      watchdog_exception('amazon_product_widget', $exception);
+    }
+  }
+
+  /**
+   * Gets products in the given entity.
+   *
+   * @command apw:entity-products
+   *
+   * @param string $entityId
+   *   The ID of the entity.
+   * @param string $entityType
+   *   (optional) The entity type. Defaults to 'node'.
+   */
+  public function getProductsForEntity(string $entityId, string $entityType = 'node') {
+    $storage = NULL;
+    try {
+      $storage = $this->entityTypeManager->getStorage($entityType);
+    }
+    catch (\Exception $exception) {
+      $this->io()->error("No storage class found for '$entityType'.");
+      return;
+    }
+
+    $entity = $storage->load($entityId);
+    if (!$entity) {
+      $this->io()->error("Could not load entity with ID: $entityId");
+      return;
+    }
+
+    $asins = $this->productUsage->getAsinsByEntity($entity);
+    if (empty($asins)) {
+      $this->io()->writeln("No products found in this entity.");
+    }
+    else {
+      $this->io()->writeln("The following products were found:");
+      foreach ($asins as $asin) {
+        $this->io()->writeln("- $asin");
+      }
+    }
+  }
+
+  /**
+   * Returns entity IDs and types that contain the given product.
+   *
+   * @param string $asin
+   *   The ASIN of the product.
+   *
+   * @command apw:product-entities
+   */
+  public function getEntitiesForProduct(string $asin) {
+    $entities = $this->productUsage->getEntitiesByAsin($asin);
+    $header = ['entity_type', 'entity_id'];
+    $rows = [];
+    foreach ($entities as $type => $id) {
+      $rows[] = [$type, $id];
+    }
+    $this->io()->table($header, $rows);
+  }
 }

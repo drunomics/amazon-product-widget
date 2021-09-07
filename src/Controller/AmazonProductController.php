@@ -5,6 +5,7 @@ namespace Drupal\amazon_product_widget\Controller;
 use Drupal\amazon_product_widget\DealFeedServiceTrait;
 use Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField;
 use Drupal\amazon_product_widget\ProductServiceTrait;
+use Drupal\amazon_product_widget\ProductUsageService;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ImmutableConfig;
@@ -53,6 +54,13 @@ class AmazonProductController extends ControllerBase {
   protected $entityTypeManager;
 
   /**
+   * Product usage service.
+   *
+   * @var \Drupal\amazon_product_widget\ProductUsageService
+   */
+  protected $productUsage;
+
+  /**
    * AmazonProductController constructor.
    *
    * @param \Drupal\Core\Render\RendererInterface $renderer
@@ -63,12 +71,15 @@ class AmazonProductController extends ControllerBase {
    *   Amazon product widget settings.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   Entity type manager.
+   * @param \Drupal\amazon_product_widget\ProductUsageService $productUsage
+   *   Product usage service.
    */
-  public function __construct(RendererInterface $renderer, LockBackendInterface $lock, ImmutableConfig $settings, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(RendererInterface $renderer, LockBackendInterface $lock, ImmutableConfig $settings, EntityTypeManagerInterface $entityTypeManager, ProductUsageService $productUsage) {
     $this->renderer = $renderer;
     $this->lock = $lock;
     $this->settings = $settings;
     $this->entityTypeManager = $entityTypeManager;
+    $this->productUsage = $productUsage;
   }
 
   /**
@@ -79,7 +90,8 @@ class AmazonProductController extends ControllerBase {
       $container->get('renderer'),
       $container->get('lock'),
       $container->get('config.factory')->get('amazon_product_widget.settings'),
-      $container->get('entity_type.manager')
+      $container->get('entity_type.manager'),
+      $container->get('amazon_product_widget.usage')
     );
   }
 
@@ -154,14 +166,15 @@ class AmazonProductController extends ControllerBase {
    * @return array
    *   The render array.
    */
-  public function details(string $asin) {
+  public function details(string $asin) : array {
     $build = [];
     $build['#title'] = $this->t('Product Details for @asin', [
       '@asin' => $asin,
     ]);
 
     try {
-      $productData = reset($this->getProductService()->getProductData([$asin]));
+      $products = $this->getProductService()->getProductData([$asin]);
+      $productData = reset($products);
 
       $build['product_info'] = [
         '#type' => 'textarea',
@@ -186,6 +199,32 @@ class AmazonProductController extends ControllerBase {
           'disabled' => 'disabled',
         ],
         '#rows' => 20,
+      ];
+
+      $entities = $this->productUsage->getEntitiesByAsin($asin);
+      $urlList = [];
+      foreach ($entities as $type => $id) {
+        try {
+          $storage = $this->entityTypeManager->getStorage($type);
+          if ($entity = $storage->load($id)) {
+            $urlList[] = [
+              '#type'  => 'link',
+              '#title' => $entity->label(),
+              '#url'   => $entity->toUrl('edit-form'),
+            ];
+          }
+        }
+        catch (\Exception $exception) {
+          watchdog_exception('amazon_product_widget', $exception);
+        }
+      }
+
+      $build['product_entities'] = [
+        '#theme' => 'item_list',
+        '#list_type' => 'ul',
+        '#title' => $this->t('Entities that contains this product'),
+        '#items' => $urlList,
+        '#wrapper_attributes' => ['class' => 'container'],
       ];
     }
     catch (\Exception $exception) {

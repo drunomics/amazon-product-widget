@@ -86,6 +86,17 @@ function amazon_product_widget_views_data() {
     ],
   ];
 
+  $data['amazon_product_widget_key_value']['available'] = [
+    'title' => t('Available'),
+    'help'  => t('Whether this product is available.'),
+    'field' => [
+      'id' => 'amazon_product_widget_product_available',
+    ],
+    'filter' => [
+      'id' => 'boolean',
+    ],
+  ];
+
   $data['amazon_product_widget_key_value']['more_info'] = [
     'title' => t('More Info'),
     'help'  => t('Shows a link to a details page about the product.'),
@@ -125,6 +136,75 @@ function amazon_product_widget_views_data() {
     'help'  => t('When the deal ends for this product.'),
     'field' => [
       'id' => 'date',
+    ],
+  ];
+
+  // Base information.
+  $data['amazon_product_widget_asin_map']['table']['group'] = t('Amazon Product Widget: EntityWithProduct');
+  $data['amazon_product_widget_asin_map']['table']['base'] = [
+    'title'    => t('Amazon Product Widget: EntityWithProduct'),
+    'help'     => t('Represents an Entity that contains an Amazon Product'),
+  ];
+
+  // Fields.
+  $data['amazon_product_widget_asin_map']['entity_id'] = [
+    'title' => t('Entity ID'),
+    'help'  => t('The entity ID of the entity that contains Amazon Products.'),
+    'field' => [
+      'id' => 'amazon_product_widget_entity_url',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['amazon_product_widget_asin_map']['asin'] = [
+    'title' => t('ASIN'),
+    'help'  => t('ASIN of the Amazon Product contained within this Entity.'),
+    'relationship' => [
+      'base' => 'amazon_product_widget_key_value',
+      'base field' => 'name',
+      'id' => 'standard',
+      'label' => t('Product: EntityWithProduct'),
+    ],
+    'field' => [
+      'id' => 'standard',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'argument' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['amazon_product_widget_asin_map']['entity_type'] = [
+    'title' => t('Entity type'),
+    'help'  => t('The entity type of the entity that contains Amazon Products.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['amazon_product_widget_asin_map']['missing_details_page'] = [
+    'title' => t('More Info'),
+    'help'  => t('Shows a link to a details page about the product.'),
+    'field' => [
+      'id' => 'amazon_product_widget_missing_details_page',
+    ],
+  ];
+
+  $data['amazon_product_widget_asin_map']['unavailable_asins'] = [
+    'title' => t('Unavailable ASINs'),
+    'help'  => t('Shows the ASINs that are unavailable for this Entity.'),
+    'field' => [
+      'id' => 'amazon_product_widget_unavailable_asins',
     ],
   ];
 
