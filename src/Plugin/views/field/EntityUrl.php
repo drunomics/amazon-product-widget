@@ -69,7 +69,7 @@ class EntityUrl extends FieldPluginBase {
           'entity_link' => [
             '#type'  => 'link',
             '#title' => $entity->label(),
-            '#url'   => $entity->toUrl('edit-form'),
+            '#url'   => $entity->toUrl('canonical'),
           ],
         ];
       }
