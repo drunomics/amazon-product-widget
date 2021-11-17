@@ -16,7 +16,7 @@ function amazon_product_widget_schema() {
     'fields' => [
       'collection' => [
         'description' => 'A named collection of key and value pairs.',
-        'type' => 'varchar_ascii',
+        'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
@@ -24,7 +24,7 @@ function amazon_product_widget_schema() {
       'name' => [
         // KEY is an SQL reserved word, so use 'name' as the key's field name.
         'description' => 'The key of the key/value pair.',
-        'type' => 'varchar_ascii',
+        'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
@@ -66,7 +66,7 @@ function amazon_product_widget_schema() {
     'fields' => [
       'asin' => [
         'description' => 'Which ASIN this deal relates to.',
-        'type' => 'varchar_ascii',
+        'type' => 'varchar',
         'length' => 16,
         'not null' => TRUE,
       ],
@@ -140,13 +140,13 @@ function amazon_product_widget_schema() {
       ],
       'entity_type' => [
         'description' => 'Entity type',
-        'type' => 'varchar_ascii',
+        'type' => 'varchar',
         'length' => 64,
         'not null' => TRUE,
       ],
       'asin' => [
         'description' => 'ASIN',
-        'type' => 'varchar_ascii',
+        'type' => 'varchar',
         'length' => 16,
         'not null' => TRUE,
       ],
@@ -265,4 +265,24 @@ function amazon_product_widget_update_8004() {
   }
 
   $database->query("UPDATE {amazon_product_widget_key_value} SET available = 1 WHERE collection = 'products'");
+}
+
+function amazon_product_widget_update_8005() {
+  $database = \Drupal::database();
+
+  $database->schema()->changeField('amazon_product_widget_key_value', 'collection', 'collection', [
+    'description' => 'A named collection of key and value pairs.',
+    'type' => 'varchar',
+    'length' => 128,
+    'not null' => TRUE,
+    'default' => '',
+  ]);
+
+  $database->schema()->changeField('amazon_product_widget_key_value', 'name', 'name', [
+    'description' => 'The key of the key/value pair.',
+    'type' => 'varchar',
+    'length' => 128,
+    'not null' => TRUE,
+    'default' => '',
+  ]);
 }
