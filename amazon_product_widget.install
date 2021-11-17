@@ -267,6 +267,9 @@ function amazon_product_widget_update_8004() {
   $database->query("UPDATE {amazon_product_widget_key_value} SET available = 1 WHERE collection = 'products'");
 }
 
+/**
+ * Changes all 'varchar_ascii' fields to 'varchar'.
+ */
 function amazon_product_widget_update_8005() {
   $database = \Drupal::database();
 
@@ -284,5 +287,26 @@ function amazon_product_widget_update_8005() {
     'length' => 128,
     'not null' => TRUE,
     'default' => '',
+  ]);
+
+  $database->schema()->changeField('amazon_product_widget_deal_feed', 'asin', 'asin', [
+    'description' => 'Which ASIN this deal relates to.',
+    'type' => 'varchar',
+    'length' => 16,
+    'not null' => TRUE,
+  ]);
+
+  $database->schema()->changeField('amazon_product_widget_asin_map', 'entity_type', 'entity_type', [
+    'description' => 'Entity type',
+    'type' => 'varchar',
+    'length' => 64,
+    'not null' => TRUE,
+  ]);
+
+  $database->schema()->changeField('amazon_product_widget_asin_map', 'asin', 'asin', [
+    'description' => 'ASIN',
+    'type' => 'varchar',
+    'length' => 16,
+    'not null' => TRUE,
   ]);
 }
