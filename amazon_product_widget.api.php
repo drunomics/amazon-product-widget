@@ -14,12 +14,12 @@ use Drupal\node\NodeInterface;
  *
  * @param array $products_container
  *   The products container.
- * @param AmazonProductField $product_field
+ * @param \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $product_field
  *   The field the product widget is attached to.
- * @param \Drupal\node\NodeInterface $node
+ * @param \Drupal\node\NodeInterface|null $node
  *   The node the product field is bound to. Can be NULL.
  */
-function hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, NodeInterface $node = NULL) {
+function hook_amazon_product_widget_alter_product_data(array &$products_container, AmazonProductField $product_field, ?NodeInterface $node = NULL) {
 }
 
 /**
