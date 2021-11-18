@@ -485,7 +485,7 @@ class ProductService {
               ->getDisplayValue();
           }
           if ($item_info->getByLineInfo() && $item_info->getByLineInfo()
-              ->getManufacturer()) {
+            ->getManufacturer()) {
             $item_data['manufacturer'] = $item_info->getByLineInfo()
               ->getManufacturer()
               ->getDisplayValue();
@@ -493,7 +493,7 @@ class ProductService {
         }
 
         if ($item->getOffers() && $item->getOffers()
-            ->getListings() && $item->getOffers()->getListings()[0]) {
+          ->getListings() && $item->getOffers()->getListings()[0]) {
 
           $offer = $item->getOffers()->getListings()[0];
           if ($price = $offer->getPrice()) {
@@ -508,13 +508,13 @@ class ProductService {
           }
 
           if ($offer->getDeliveryInfo() && $offer->getDeliveryInfo()
-              ->getIsPrimeEligible()) {
+            ->getIsPrimeEligible()) {
             $item_data['is_eligible_for_prime'] = TRUE;
           }
         }
 
         if ($item->getImages() && $primary_images = $item->getImages()
-            ->getPrimary()) {
+          ->getPrimary()) {
           if ($primary_images->getMedium()) {
             $item_data['medium_image'] = [
               'URL' => $primary_images->getMedium()->getURL(),
@@ -672,7 +672,7 @@ class ProductService {
   /**
    * Builds products for theming with fallback.
    *
-   * @param AmazonProductField $product_field
+   * @param \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $product_field
    *   Product field.
    * @param \Drupal\node\NodeInterface|null $node
    *   Node the product field is on.
@@ -721,7 +721,7 @@ class ProductService {
   /**
    * Gets the raw product data with fallback.
    *
-   * @param AmazonProductField $product_field
+   * @param \Drupal\amazon_product_widget\Plugin\Field\FieldType\AmazonProductField $product_field
    *   Product field.
    * @param \Drupal\node\NodeInterface|null $node
    *   The node the product field is attached to.
@@ -729,7 +729,7 @@ class ProductService {
    * @return mixed[]
    *   Data array.
    */
-  public function getProductsWithFallback(AmazonProductField $product_field, NodeInterface $node = NULL) {
+  public function getProductsWithFallback(AmazonProductField $product_field, ?NodeInterface $node = NULL) {
     $asins = $product_field->getAsins();
     $title = $product_field->getTitle();
     $search_terms = $product_field->getSearchTerms();
