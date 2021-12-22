@@ -1,3 +1,5 @@
+**Deprecated:** moved to https://www.drupal.org/project/amazon_product_widget
+
 # Amazon product widget
 
 Provides a field widget to render amazon products given ASINs.
